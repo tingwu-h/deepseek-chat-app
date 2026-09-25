@@ -1,0 +1,43 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# 本仓库自带的打包工具链（体积很大，不要提交）
+.toolchain/
+dist/
+
+# 签名文件：绝对不要提交
+*.jks
+*.keystore
+android/key.properties
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+macos/Pods/
+**/GeneratedPluginRegistrant.*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.log

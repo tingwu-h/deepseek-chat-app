@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 设置页 / 系统设置里显示的应用名 -->
+    <string name="app_name">DeepSeek 助手</string>
+</resources>

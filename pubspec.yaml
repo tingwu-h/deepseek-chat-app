@@ -1,0 +1,36 @@
+name: deepseek_chat
+description: "DeepSeek 聊天助手 —— Flutter 跨平台客户端（流式输出 / 本地历史 / 深色模式 / 自填 API Key）"
+publish_to: 'none'
+
+# 版本号：语义化版本 + 构建号
+# 1.0.1：把模型切换挪到聊天页顶栏；去掉重复的设置入口
+version: 1.0.1+2
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ---------- 状态管理 ----------
+  provider: ^6.1.2
+
+  # ---------- 网络请求（流式 SSE 用 http.Client.send + StreamedResponse）----------
+  http: ^1.2.2
+
+  # ---------- 本地持久化（对话历史 + API Key + 主题）----------
+  shared_preferences: ^2.3.2
+
+  # ---------- Assistant 气泡里的 Markdown / 代码块渲染 ----------
+  flutter_markdown: ^0.7.4+1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_final_locals: true
+    always_use_package_imports: true
+
+analyzer:
+  errors:
+    # 让 CI / 本地分析对未使用变量更宽容一点，但不隐藏真实错误
+    unused_local_variable: warning
