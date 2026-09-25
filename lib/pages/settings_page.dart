@@ -408,8 +408,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   // ignore: deprecated_member_use
                   groupValue: _themeMode,
                   // ignore: deprecated_member_use
-                  onChanged: (String? value) {
-                    if (value != null) setState(() => _themeMode = value);
+                  onChanged: (String? value) async {
+                    if (value == null) return;
+                    // 主题属于「选完就想看到效果」的偏好，立即生效并落盘，
+                    // 不需要用户再点一次「保存」——之前必须保存才生效，
+                    // 选完直接返回就白选了。
+                    setState(() => _themeMode = value);
+                    await context
+                        .read<AppSettingsProvider>()
+                        .update(themeMode: value);
                   },
                   contentPadding: EdgeInsets.zero,
                   title: Text(switch (mode) {
@@ -423,6 +430,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     _ => const Text('系统切换深色时自动跟随'),
                   },
                 ),
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  '选完立即生效，无需再点保存。',
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
             ],
           ),
 

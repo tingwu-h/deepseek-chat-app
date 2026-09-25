@@ -6,12 +6,12 @@
   <img alt="platform" src="https://img.shields.io/badge/platform-Android-3ddc84">
   <img alt="flutter" src="https://img.shields.io/badge/Flutter-3.22%2B-02569b">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="version" src="https://img.shields.io/badge/version-1.1.1-orange">
+  <img alt="version" src="https://img.shields.io/badge/version-1.1.2-orange">
 </p>
 
 ## 下载
 
-到 [Releases](../../releases/latest) 页面下载 `deepseek-chat-v1.1.1.apk`，传到手机点开安装。
+到 [Releases](../../releases/latest) 页面下载 `deepseek-chat-v1.1.2.apk`，传到手机点开安装。
 
 > 支持 Android 7.0+（arm64-v8a / armeabi-v7a / x86_64）。
 

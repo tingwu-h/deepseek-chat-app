@@ -85,7 +85,11 @@ class _MessageListViewState extends State<MessageListView> {
   }
 }
 
-/// 空会话时的引导页
+/// 空会话时的引导页。
+///
+/// 刻意保持极简：输入框已经写着「给 DeepSeek 发消息…」，
+/// 屏幕中间再教一遍「怎么发消息」就是重复噪音（之前那版就是这个问题）。
+/// 只有「还没配 API Key」这种用户必须知道的信息才显示。
 class _EmptyHint extends StatelessWidget {
   const _EmptyHint();
 
@@ -103,24 +107,26 @@ class _EmptyHint extends StatelessWidget {
           children: <Widget>[
             Icon(
               Icons.forum_outlined,
-              size: 56,
-              color: scheme.primary.withValues(alpha: 0.75),
+              size: 48,
+              color: scheme.primary.withValues(alpha: 0.55),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
-              '开始和 DeepSeek 聊天',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              hasApiKey
-                  ? '在下面输入问题，回复会一个字一个字地显示出来。'
-                  : '还没有配置 API Key，点右上角「⋮ → 设置」填写后再回来。',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              '新对话',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
             ),
+            if (!hasApiKey) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                '还没配置 API Key，从左侧抽屉进入「设置」填写。',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
           ],
         ),
       ),

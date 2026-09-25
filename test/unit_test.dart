@@ -1,13 +1,38 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
+import 'package:deepseek_chat/utils/app_info.dart';
 
 /// 纯逻辑层单元测试：不联网、不消耗 API 额度。
 ///
 /// 运行：flutter test test/unit_test.dart
 void main() {
+  test('app_info.dart 的版本号与 pubspec.yaml 一致', () {
+    // 守住「改了 pubspec 忘记改 kAppVersion」这种低级错误。
+    // 这个值会显示在设置页底部，之前就翻过车（显示成「开发版」）。
+    final File pubspec = File('pubspec.yaml');
+    expect(pubspec.existsSync(), isTrue,
+        reason: '测试的工作目录应该是项目根目录');
+
+    String? version;
+    for (final String line in pubspec.readAsLinesSync()) {
+      final RegExpMatch? m =
+          RegExp(r'^version:\s*([0-9]+\.[0-9]+\.[0-9]+)').firstMatch(line);
+      if (m != null) {
+        version = m.group(1);
+        break;
+      }
+    }
+    expect(version, isNotNull, reason: 'pubspec.yaml 里没找到 version');
+    expect(kAppVersion, version,
+        reason: 'lib/utils/app_info.dart 的 kAppVersion 与 pubspec 不一致，'
+            '设置页会显示错误版本号');
+  });
+
   group('AppSettings', () {
     test('默认值：模型是 deepseek-flash，Base URL 是官方地址', () {
       final AppSettings s = AppSettings();

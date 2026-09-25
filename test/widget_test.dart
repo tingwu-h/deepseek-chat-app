@@ -99,10 +99,13 @@ void main() {
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    expect(find.text('新对话'), findsOneWidget);
+    // 顶栏标题与空态引导都写「新对话」
+    expect(find.text('新对话'), findsNWidgets(2));
     expect(find.text('给 DeepSeek 发消息…'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
-    expect(find.text('开始和 DeepSeek 聊天'), findsOneWidget);
+    // 空态不再重复教「怎么发消息」（输入框已有提示）
+    expect(find.textContaining('一个字一个字'), findsNothing);
+    expect(find.textContaining('在下面输入问题'), findsNothing);
   });
 
   testWidgets('设置入口唯一：只在会话抽屉里（回归：曾齿轮/菜单/抽屉三处重复）',
@@ -222,6 +225,54 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('测试连接'), findsOneWidget);
+  });
+
+  testWidgets('设置页改主题立即生效（回归：曾必须再点保存才生效）',
+      (WidgetTester tester) async {
+    final _Harness h = await _buildHarness();
+    await tester.pumpWidget(h.app);
+    await tester.pumpAndSettle();
+
+    // 初始跟随系统
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.system,
+    );
+
+    // 进入设置页（入口在会话抽屉底部）
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+
+    // 选择「深色」——不加任何保存操作。
+    //
+    // 这里刻意不用 find.ancestor(of: find.text('深色'), ...)：
+    // 那个组合在「ListView 懒构建 + RadioListTile 内部结构」下会一个都找不到（已实测）。
+    // 做法：先确认文本已构建 → 再分次拖拽把它挪进视口 → 点它。
+    bool tapped = false;
+    for (int i = 0; i < 14 && !tapped; i++) {
+      final Finder darkText = find.text('深色');
+      if (darkText.evaluate().isNotEmpty) {
+        final Offset c = tester.getCenter(darkText);
+        if (c.dy > 60 && c.dy < 550) {
+          await tester.tap(darkText);
+          tapped = true;
+          break;
+        }
+      }
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -150));
+      await tester.pumpAndSettle();
+    }
+    expect(tapped, isTrue, reason: '没能把「深色」选项滚进可点击区域');
+    await tester.pumpAndSettle();
+
+    // 立即生效：MaterialApp 变成 dark，且已持久化
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    expect(h.settings.themeModeName, 'dark');
   });
 
   test('AppSettings 默认值正确', () {
