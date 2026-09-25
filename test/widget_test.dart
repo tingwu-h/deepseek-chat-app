@@ -108,6 +108,22 @@ void main() {
     expect(find.textContaining('在下面输入问题'), findsNothing);
   });
 
+  testWidgets('⋮ 菜单只有清空当前对话，不重复停止生成（回归：停止已在发送按钮上）',
+      (WidgetTester tester) async {
+    final _Harness h = await _buildHarness();
+    await tester.pumpWidget(h.app);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    expect(find.text('清空当前对话'), findsOneWidget);
+    // 停止生成不该出现在菜单里——它已经集成在发送按钮上（生成时变 ⏹）
+    expect(find.text('停止生成'), findsNothing);
+    // 菜单里也不该有设置（设置在会话抽屉底部）
+    expect(find.text('设置'), findsNothing);
+  });
+
   testWidgets('设置入口唯一：只在会话抽屉里（回归：曾齿轮/菜单/抽屉三处重复）',
       (WidgetTester tester) async {
     final _Harness h = await _buildHarness();

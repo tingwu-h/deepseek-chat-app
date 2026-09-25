@@ -196,20 +196,12 @@ class _ChatPageState extends State<ChatPage> {
               icon: const Icon(Icons.add_comment_outlined),
             ),
             _buildModelSelector(settings, chat),
-            // ⋮ 直接就是「清空当前对话」——设置已经在会话抽屉底部，
-            // 再放一份在菜单里就是重复入口（之前已经被指出来过一次）。
-            // 生成过程中额外提供「停止生成」。
+            // ⋮ 菜单只有「清空当前对话」这一项。
+            // 停止生成已集成在发送按钮上（生成时它会变成 ⏹），不再在这里重复一份。
             PopupMenuButton<String>(
-              tooltip: '更多',
+              tooltip: '清空当前对话',
               onSelected: (String value) {
-                switch (value) {
-                  case 'clear':
-                    _confirmClearCurrent();
-                    break;
-                  case 'stop':
-                    chat.stop();
-                    break;
-                }
+                if (value == 'clear') _confirmClearCurrent();
               },
               itemBuilder: (BuildContext context) =>
                   <PopupMenuEntry<String>>[
@@ -222,16 +214,6 @@ class _ChatPageState extends State<ChatPage> {
                     title: Text('清空当前对话'),
                   ),
                 ),
-                if (chat.isLoading)
-                  const PopupMenuItem<String>(
-                    value: 'stop',
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.stop_circle_outlined),
-                      title: Text('停止生成'),
-                    ),
-                  ),
               ],
             ),
           ],
