@@ -69,11 +69,17 @@ class DeepSeekService {
         'Authorization': 'Bearer ${apiKey.trim()}',
       };
 
-  /// 把 UI 上的消息整理成 API 需要的 `messages`（过滤错误气泡 / 空内容）。
-  List<Map<String, dynamic>> buildApiMessages(
+  /// 把 UI 上的消息整理成 API 需要的 `messages`。
+  ///
+  /// - 过滤错误气泡、空消息
+  /// - 带附件的消息会拼成 block 数组（图片 → image_url，文本文件 → text）
+  /// - 官方要求：图片只能出现在 user 消息里，这里天然满足（附件只挂在用户消息上）
+  ///
+  /// 注意：因为要读图片文件并转 base64，这个方法是异步的。
+  Future<List<Map<String, dynamic>>> buildApiMessages(
     List<ChatMessage> history, {
     String? systemPrompt,
-  }) {
+  }) async {
     final List<Map<String, dynamic>> result = <Map<String, dynamic>>[];
     final String sys = (systemPrompt ?? '').trim();
     if (sys.isNotEmpty) {
@@ -81,8 +87,12 @@ class DeepSeekService {
     }
     for (final ChatMessage m in history) {
       if (m.error) continue;
-      if (m.content.trim().isEmpty) continue;
-      result.add(m.toApiJson());
+      if (m.isBlank) continue;
+      if (m.attachments.isEmpty) {
+        result.add(m.toApiJson());
+      } else {
+        result.add(await m.toApiJsonWithAttachments());
+      }
     }
     return result;
   }
@@ -120,7 +130,7 @@ class DeepSeekService {
     }
 
     final Uri uri = _endpoint(settings.baseUrl);
-    final List<Map<String, dynamic>> messages = buildApiMessages(
+    final List<Map<String, dynamic>> messages = await buildApiMessages(
       history,
       systemPrompt: settings.systemPrompt,
     );
@@ -221,14 +231,18 @@ class DeepSeekService {
       throw DeepSeekException('还没有填写 API Key，请先到「设置」里填写。');
     }
 
+    final List<Map<String, dynamic>> apiMessages = await buildApiMessages(
+      history,
+      systemPrompt: settings.systemPrompt,
+    );
+
     final http.Response response = await _client
         .post(
           _endpoint(settings.baseUrl),
           headers: _headers(apiKey),
           body: jsonEncode(_body(
             model: settings.model,
-            messages: buildApiMessages(history,
-                systemPrompt: settings.systemPrompt),
+            messages: apiMessages,
             stream: false,
             temperature: settings.temperature,
           )),

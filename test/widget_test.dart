@@ -94,20 +94,43 @@ void main() {
     expect(find.text('开始和 DeepSeek 聊天'), findsOneWidget);
   });
 
-  testWidgets('设置入口只有一个（回归：曾同时有齿轮和 ⋮ 菜单两项）',
+  testWidgets('设置入口唯一：只在 ⋮ 菜单里（回归：曾同时有齿轮和菜单两项）',
       (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 齿轮图标只应出现一次
-    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+    // 顶栏不再有齿轮图标（已收进 ⋮ 菜单）
+    expect(find.byIcon(Icons.settings_outlined), findsNothing);
 
-    // ⋮ 菜单里不应再有「API Key 与设置」这一项
+    // ⋮ 菜单里只有一个「设置」，且旧的「API Key 与设置」已不存在
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
+    expect(find.text('设置'), findsOneWidget);
     expect(find.text('API Key 与设置'), findsNothing);
     expect(find.text('清空当前对话'), findsOneWidget);
+  });
+
+  testWidgets('顶栏有新建对话按钮，点了会开新会话', (WidgetTester tester) async {
+    final _Harness h = await _buildHarness();
+    await tester.pumpWidget(h.app);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '第一轮提问');
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+    expect(h.chat.messages.length, 2);
+    final String? firstId = h.chat.activeConversationId;
+
+    await tester.tap(find.byIcon(Icons.add_comment_outlined));
+    await tester.pumpAndSettle();
+
+    // 新会话应为空，且 id 变了
+    expect(h.chat.messages, isEmpty);
+    expect(h.chat.activeConversationId, isNot(firstId));
+    // 旧会话仍在列表里
+    expect(h.chat.conversations.length, greaterThanOrEqualTo(2));
   });
 
   testWidgets('聊天页顶栏可以直接切换模型（回归：曾只能在设置页底部改）',
@@ -153,7 +176,10 @@ void main() {
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    // 现在设置入口在 ⋮ 菜单里
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
     expect(find.text('DeepSeek API Key'), findsOneWidget);

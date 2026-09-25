@@ -41,3 +41,11 @@ macos/Pods/
 *.iml
 .vscode/
 *.log
+
+# 本地打包脚本与构建记录：含本机路径/用户名，且只对 Windows 本机有意义，不入库
+tools/ascii_build.ps1
+tools/setup_android_build.ps1
+tools/build_apk.ps1
+tools/download.mjs
+打包结果说明.md
+上传GitHub清单.md

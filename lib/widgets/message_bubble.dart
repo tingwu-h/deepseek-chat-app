@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/utils/formatters.dart';
 import 'package:deepseek_chat/widgets/typing_indicator.dart';
@@ -93,8 +96,17 @@ class MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    // 附件：图片缩略图（点开可看大图）/ 文本文件标签
+                    if (message.attachments.isNotEmpty) ...<Widget>[
+                      _buildAttachments(context),
+                      if (message.content.trim().isNotEmpty)
+                        const SizedBox(height: 6),
+                    ],
                     if (message.content.isEmpty && showTyping)
                       const TypingIndicator(label: '正在思考')
+                    else if (message.content.isEmpty && message.attachments.isNotEmpty)
+                      // 只发了附件没写文字：不显示空文本
+                      const SizedBox.shrink()
                     else if (isUser || isError)
                       SelectableText(
                         message.content,
@@ -125,6 +137,95 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 气泡里的附件展示：图片缩略图 + 文本文件标签
+  Widget _buildAttachments(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final List<Widget> children = <Widget>[];
+
+    for (final ChatAttachment a in message.attachments) {
+      if (a.isImage) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: GestureDetector(
+              onTap: () => _showFullImage(context, a),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(
+                  File(a.path),
+                  width: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 200,
+                    height: 80,
+                    alignment: Alignment.center,
+                    color: scheme.surface.withValues(alpha: 0.5),
+                    child: const Text('图片已不在本地'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      } else {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: scheme.surface.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.description_outlined,
+                      size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '${a.name}（${a.sizeLabel}）',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+  }
+
+  /// 点缩略图看大图
+  void _showFullImage(BuildContext context, ChatAttachment a) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        backgroundColor: Colors.transparent,
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: InteractiveViewer(
+            maxScale: 5,
+            child: Image.file(
+              File(a.path),
+              errorBuilder: (_, __, ___) => const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('图片已不在本地',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

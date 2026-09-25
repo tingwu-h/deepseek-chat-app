@@ -6,6 +6,7 @@ import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
+import 'package:deepseek_chat/utils/app_info.dart';
 
 /// 设置页：API Key（用户自己填，绝不硬编码）、模型、主题、系统提示词。
 class SettingsPage extends StatefulWidget {
@@ -458,12 +459,12 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: () async {
-                  await chat.clearConversation();
+                  await chat.clearAllConversations();
                   if (!mounted) return;
-                  _toast('已清空本地聊天记录');
+                  _toast('已清空全部对话记录');
                 },
                 icon: const Icon(Icons.delete_sweep_outlined),
-                label: const Text('清空本地聊天记录'),
+                label: const Text('清空全部对话记录'),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
@@ -477,7 +478,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 20),
           Center(
             child: Text(
-              'DeepSeek 聊天助手 v1.0.0 · Flutter + Provider',
+              'DeepSeek 助手 v$kAppVersion',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),

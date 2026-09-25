@@ -69,9 +69,9 @@ void main() {
   });
 
   group('DeepSeekService.buildApiMessages', () {
-    test('注入 system 提示词，并过滤错误气泡 / 空内容', () {
+    test('注入 system 提示词，并过滤错误气泡 / 空内容', () async {
       final DeepSeekService service = DeepSeekService();
-      final List<Map<String, dynamic>> api = service.buildApiMessages(
+      final List<Map<String, dynamic>> api = await service.buildApiMessages(
         <ChatMessage>[
           ChatMessage.user('你好'),
           ChatMessage(
@@ -93,9 +93,9 @@ void main() {
       service.dispose();
     });
 
-    test('没有 system 提示词时不插入 system 消息', () {
+    test('没有 system 提示词时不插入 system 消息', () async {
       final DeepSeekService service = DeepSeekService();
-      final List<Map<String, dynamic>> api = service.buildApiMessages(
+      final List<Map<String, dynamic>> api = await service.buildApiMessages(
         <ChatMessage>[ChatMessage.user('hi')],
       );
       expect(api.length, 1);

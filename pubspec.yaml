@@ -1,10 +1,11 @@
 name: deepseek_chat
-description: "DeepSeek 聊天助手 —— Flutter 跨平台客户端（流式输出 / 本地历史 / 深色模式 / 自填 API Key）"
+description: "DeepSeek 聊天助手 —— 支持流式输出、图片理解、多会话历史与深色模式的客户端"
 publish_to: 'none'
 
 # 版本号：语义化版本 + 构建号
-# 1.0.1：把模型切换挪到聊天页顶栏；去掉重复的设置入口
-version: 1.0.1+2
+# 1.0.1：模型切换挪到聊天页顶栏；去掉重复的设置入口
+# 1.1.0：新增发图片/文件、多会话（新建对话与历史列表）、设置收进 ⋮ 菜单
+version: 1.1.0+3
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -21,6 +22,15 @@ dependencies:
 
   # ---------- 本地持久化（对话历史 + API Key + 主题）----------
   shared_preferences: ^2.3.2
+
+  # ---------- 选图片 / 选文件 ----------
+  image_picker: ^1.1.2
+  # 注意：必须是 9 以上。8.x 自身是按 compileSdk 34 编译的，
+  # 而 Flutter 3.47 要求 compileSdk >= 36，用 8.x 会在 Gradle 阶段直接失败。
+  file_picker: ^13.1.0
+
+  # ---------- 附件落盘到应用私有目录（避免把 base64 塞进 shared_preferences）----------
+  path_provider: ^2.1.4
 
   # ---------- Assistant 气泡里的 Markdown / 代码块渲染 ----------
   flutter_markdown: ^0.7.4+1
