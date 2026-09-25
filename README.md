@@ -6,18 +6,19 @@
   <img alt="platform" src="https://img.shields.io/badge/platform-Android-3ddc84">
   <img alt="flutter" src="https://img.shields.io/badge/Flutter-3.22%2B-02569b">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="version" src="https://img.shields.io/badge/version-1.1.0-orange">
+  <img alt="version" src="https://img.shields.io/badge/version-1.1.1-orange">
 </p>
 
 ## 下载
 
-到 [Releases](../../releases/latest) 页面下载 `deepseek-chat-v1.1.0.apk`，传到手机点开安装。
+到 [Releases](../../releases/latest) 页面下载 `deepseek-chat-v1.1.1.apk`，传到手机点开安装。
 
 > 支持 Android 7.0+（arm64-v8a / armeabi-v7a / x86_64）。
 
 ## 功能
 
 - **流式回复** —— 边生成边显示，打字机效果；随时可以停止
+- **思考过程可折叠** —— 推理模型的思考内容单独成块、默认收起，正文保持干净
 - **发图片** —— 拍照或从相册选图，让模型看图说话（`deepseek-flash` 支持图像理解）
 - **发文件** —— 支持 txt / md / json / csv 以及各种代码文件，内容会读进对话
 - **多会话** —— 左侧抽屉管理历史对话，随时新建、切换、删除

@@ -10,7 +10,9 @@ import 'package:deepseek_chat/utils/formatters.dart';
 import 'package:deepseek_chat/widgets/typing_indicator.dart';
 
 /// 单条聊天气泡：用户消息靠右，助手消息靠左。
-class MessageBubble extends StatelessWidget {
+///
+/// 需要是 StatefulWidget：思考过程的展开/收起是每条气泡自己的界面状态。
+class MessageBubble extends StatefulWidget {
   const MessageBubble({
     super.key,
     required this.message,
@@ -23,11 +25,29 @@ class MessageBubble extends StatelessWidget {
   final bool showTyping;
 
   @override
+  State<MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<MessageBubble> {
+  /// 思考过程是否展开。默认收起——用户只想看正文，想看得自己点开。
+  bool _thinkingExpanded = false;
+
+  /// 一旦用户手动点过开关，就不再自动展开/收起，免得跟用户抢
+  bool _userToggledThinking = false;
+
+  ChatMessage get message => widget.message;
+
+  @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     final bool isUser = message.isUser;
     final bool isError = message.error;
+
+    // 正在思考、还没出正文时，自动展开让用户知道模型在做什么
+    final bool autoExpanded =
+        widget.showTyping && message.hasThinking && !_userToggledThinking;
+    final bool thinkingOpen = _thinkingExpanded || autoExpanded;
 
     final Color bubbleColor = isError
         ? scheme.errorContainer
@@ -96,16 +116,23 @@ class MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    // 思考过程（reasoning_content）：单独一块，默认收起
+                    if (!isUser && message.hasThinking) ...<Widget>[
+                      _buildThinkingBlock(context, textColor, thinkingOpen),
+                      const SizedBox(height: 6),
+                    ],
                     // 附件：图片缩略图（点开可看大图）/ 文本文件标签
                     if (message.attachments.isNotEmpty) ...<Widget>[
                       _buildAttachments(context),
                       if (message.content.trim().isNotEmpty)
                         const SizedBox(height: 6),
                     ],
-                    if (message.content.isEmpty && showTyping)
-                      const TypingIndicator(label: '正在思考')
-                    else if (message.content.isEmpty && message.attachments.isNotEmpty)
-                      // 只发了附件没写文字：不显示空文本
+                    if (message.content.isEmpty && widget.showTyping)
+                      const TypingIndicator(label: '正在生成回答')
+                    else if (message.content.isEmpty &&
+                        (message.attachments.isNotEmpty ||
+                            message.hasThinking))
+                      // 只有附件或只有思考内容时，不显示空正文
                       const SizedBox.shrink()
                     else if (isUser || isError)
                       SelectableText(
@@ -136,6 +163,77 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// 思考过程区块：默认收起，只显示一行提示；点一下才展开看全文。
+  ///
+  /// 为什么不直接混在正文里：思考过程往往很长，混进去会让回答难以阅读，
+  /// 而且用户要的答案通常只有最后那几句。
+  Widget _buildThinkingBlock(
+    BuildContext context,
+    Color textColor,
+    bool expanded,
+  ) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final int chars = message.thinking.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(
+          left: BorderSide(color: scheme.outlineVariant, width: 2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          InkWell(
+            onTap: () => setState(() {
+              _userToggledThinking = true;
+              _thinkingExpanded = !expanded;
+            }),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.psychology_outlined,
+                      size: 14, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Text(
+                    expanded ? '思考过程（点击收起）' : '思考过程（$chars 字，点击展开）',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: SelectableText(
+                message.thinking,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: textColor.withValues(alpha: 0.75),
+                  height: 1.4,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
         ],
       ),
     );

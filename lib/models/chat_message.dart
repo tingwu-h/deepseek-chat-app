@@ -16,6 +16,7 @@ class ChatMessage {
     required this.content,
     DateTime? timestamp,
     this.error = false,
+    this.thinking = '',
     List<ChatAttachment>? attachments,
   })  : timestamp = timestamp ?? DateTime.now(),
         attachments = attachments ?? <ChatAttachment>[];
@@ -49,6 +50,15 @@ class ChatMessage {
 
   /// 附件（图片 / 文本类文件）。只有用户消息会有。
   final List<ChatAttachment> attachments;
+
+  /// 模型的思考过程（`reasoning_content`）。
+  ///
+  /// 必须和 [content] 分开存：思考内容是给用户「想看才看」的，
+  /// 混进正文会让回答看起来一团糟，而且会被当成正式回答发给下一轮上下文。
+  String thinking;
+
+  /// 是否有思考过程可看
+  bool get hasThinking => thinking.trim().isNotEmpty;
 
   bool get isUser => role == MessageRole.user;
   bool get isAssistant => role == MessageRole.assistant;
@@ -84,6 +94,7 @@ class ChatMessage {
         'content': content,
         'timestamp': timestamp.millisecondsSinceEpoch,
         'error': error,
+        if (thinking.isNotEmpty) 'thinking': thinking,
         if (attachments.isNotEmpty)
           'attachments': attachments
               .map((ChatAttachment a) => a.toJson())
@@ -100,6 +111,7 @@ class ChatMessage {
           ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
           : (DateTime.tryParse('${json['timestamp']}') ?? DateTime.now()),
       error: json['error'] == true,
+      thinking: (json['thinking'] as String?) ?? '',
       attachments: rawA
           .whereType<Map<String, dynamic>>()
           .map(ChatAttachment.fromJson)

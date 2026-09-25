@@ -196,13 +196,13 @@ class _ChatPageState extends State<ChatPage> {
               icon: const Icon(Icons.add_comment_outlined),
             ),
             _buildModelSelector(settings, chat),
+            // ⋮ 直接就是「清空当前对话」——设置已经在会话抽屉底部，
+            // 再放一份在菜单里就是重复入口（之前已经被指出来过一次）。
+            // 生成过程中额外提供「停止生成」。
             PopupMenuButton<String>(
               tooltip: '更多',
               onSelected: (String value) {
                 switch (value) {
-                  case 'settings':
-                    _openSettings();
-                    break;
                   case 'clear':
                     _confirmClearCurrent();
                     break;
@@ -213,15 +213,6 @@ class _ChatPageState extends State<ChatPage> {
               },
               itemBuilder: (BuildContext context) =>
                   <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'settings',
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.settings_outlined),
-                    title: Text('设置'),
-                  ),
-                ),
                 const PopupMenuItem<String>(
                   value: 'clear',
                   child: ListTile(

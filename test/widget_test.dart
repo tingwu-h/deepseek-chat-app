@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:deepseek_chat/main.dart';
 import 'package:deepseek_chat/models/app_settings.dart';
+import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
@@ -21,8 +22,18 @@ class _FakeClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final String body = streaming
-        // 两个 SSE 数据帧 + 结束标记
+        // 一个思考帧 + 两个正文帧 + 结束标记
+        // 思考帧用来验证 reasoning_content 不会被混进正文
         ? 'data: ${jsonEncode(<String, dynamic>{
+            'choices': <dynamic>[
+              <String, dynamic>{
+                'delta': <String, dynamic>{
+                  'reasoning_content': '我需要先想想怎么回答。',
+                },
+              }
+            ],
+          })}\n\n'
+            'data: ${jsonEncode(<String, dynamic>{
             'choices': <dynamic>[
               <String, dynamic>{
                 'delta': <String, dynamic>{'content': '你好'},
@@ -94,21 +105,28 @@ void main() {
     expect(find.text('开始和 DeepSeek 聊天'), findsOneWidget);
   });
 
-  testWidgets('设置入口唯一：只在 ⋮ 菜单里（回归：曾同时有齿轮和菜单两项）',
+  testWidgets('设置入口唯一：只在会话抽屉里（回归：曾齿轮/菜单/抽屉三处重复）',
       (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 顶栏不再有齿轮图标（已收进 ⋮ 菜单）
+    // 顶栏不再有齿轮图标
     expect(find.byIcon(Icons.settings_outlined), findsNothing);
 
-    // ⋮ 菜单里只有一个「设置」，且旧的「API Key 与设置」已不存在
+    // ⋮ 菜单里只有「清空当前对话」，没有设置
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
-    expect(find.text('设置'), findsOneWidget);
-    expect(find.text('API Key 与设置'), findsNothing);
     expect(find.text('清空当前对话'), findsOneWidget);
+    expect(find.text('设置'), findsNothing);
+    expect(find.text('API Key 与设置'), findsNothing);
+
+    // 关掉菜单，打开会话抽屉，设置在这里
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    expect(find.text('设置'), findsOneWidget);
   });
 
   testWidgets('顶栏有新建对话按钮，点了会开新会话', (WidgetTester tester) async {
@@ -169,6 +187,15 @@ void main() {
     // 助手回复由 flutter_markdown 渲染成富文本
     expect(find.textContaining('你好，世界'), findsOneWidget);
     expect(h.chat.messages.length, 2);
+
+    // 回归：思考过程必须和正文分开，不能混在一起
+    final ChatMessage reply = h.chat.messages.last;
+    expect(reply.content, '你好，世界');
+    expect(reply.content.contains('我需要先想想'), isFalse);
+    expect(reply.thinking, '我需要先想想怎么回答。');
+    // 思考过程默认收起，界面上只显示「点击展开」的提示
+    expect(find.textContaining('思考过程'), findsOneWidget);
+    expect(find.textContaining('我需要先想想'), findsNothing);
   });
 
   testWidgets('设置页显示 API Key 输入框（Key 不硬编码）', (WidgetTester tester) async {
@@ -176,8 +203,8 @@ void main() {
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 现在设置入口在 ⋮ 菜单里
-    await tester.tap(find.byIcon(Icons.more_vert));
+    // 设置入口在会话抽屉底部
+    await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();

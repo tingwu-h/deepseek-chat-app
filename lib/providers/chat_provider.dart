@@ -184,12 +184,17 @@ class ChatProvider extends ChangeNotifier {
         if (token != _activeToken) break; // 用户点了停止 / 切换了会话
         if (chunk.isEmpty) continue;
         receivedAny = true;
-        assistant.content += chunk.text;
+        // 思考过程和正文分开存：混在一起会让回答一团糟
+        if (chunk.thinking) {
+          assistant.thinking += chunk.text;
+        } else {
+          assistant.content += chunk.text;
+        }
         notifyListeners();
       }
 
       final bool finished = token == _activeToken;
-      if (finished && assistant.content.trim().isEmpty) {
+      if (finished && assistant.content.trim().isEmpty && !assistant.hasThinking) {
         assistant.content = '（模型没有返回内容，请重试或换一个模型）';
         assistant.error = true;
       }
