@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
+import 'package:deepseek_chat/pages/about_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
-import 'package:deepseek_chat/utils/app_info.dart';
+import 'package:deepseek_chat/utils/link_actions.dart';
 
 /// 设置页：API Key（用户自己填，绝不硬编码）、模型、主题、系统提示词。
 class SettingsPage extends StatefulWidget {
@@ -138,6 +139,9 @@ class _SettingsPageState extends State<SettingsPage> {
     return oneLine.length <= 30 ? oneLine : '${oneLine.substring(0, 30)}…';
   }
 
+  /// 打开 DeepSeek 开放平台（申请 API Key）——逻辑统一在 link_actions.dart
+  Future<void> _openPlatform() => openDeepSeekPlatform(context);
+
   void _toast(String message, {bool isError = false}) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context)
@@ -259,9 +263,33 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               const SizedBox(height: 8),
+              // 需要填 API Key 的地方都给出开放平台入口，省得用户自己找
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: _openPlatform,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.open_in_new, size: 14, color: scheme.primary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '还没有 Key？点这里打开 DeepSeek 开放平台申请',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.primary,
+                            decoration: TextDecoration.underline,
+                            decorationColor: scheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               Text(
-                'Key 申请地址：platform.deepseek.com → API Keys。'
-                '它只保存在这台手机的本地存储里，不会上传到任何第三方服务器。',
+                'Key 只保存在这台手机的本地存储里，不会上传给任何第三方服务器。',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -489,14 +517,20 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 20),
-          Center(
-            child: Text(
-              'DeepSeek 助手 v$kAppVersion',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+          const SizedBox(height: 16),
+          _sectionTitle('关于'),
+          _card(
+            children: <Widget>[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.info_outline),
+                title: const Text('关于 DeepSeek 助手'),
+                subtitle: const Text('版本、创作者与相关链接'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () =>
+                    Navigator.of(context).pushNamed(AboutPage.routeName),
               ),
-            ),
+            ],
           ),
         ],
       ),

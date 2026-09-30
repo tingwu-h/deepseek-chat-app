@@ -9,6 +9,7 @@ import 'package:deepseek_chat/pages/settings_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/attachment_service.dart';
+import 'package:deepseek_chat/utils/link_actions.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
@@ -37,7 +38,18 @@ class _ChatPageState extends State<ChatPage> {
     final AppSettingsProvider settings = context.read<AppSettingsProvider>();
 
     if (!settings.hasApiKey) {
-      _showSnack('请先在「设置」里填写 DeepSeek API Key');
+      // 提示里带上开放平台入口：新用户不用自己去找申请地址
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('请先配置 DeepSeek API Key'),
+            action: SnackBarAction(
+              label: '去申请',
+              onPressed: () => openDeepSeekPlatform(context),
+            ),
+          ),
+        );
       _openSettings();
       return;
     }

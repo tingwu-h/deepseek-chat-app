@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
+import 'package:deepseek_chat/utils/link_actions.dart';
 import 'package:deepseek_chat/widgets/message_bubble.dart';
 
 /// 对话气泡列表。
@@ -125,6 +126,13 @@ class _EmptyHint extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
+              ),
+              const SizedBox(height: 10),
+              // 新用户第一眼就该有地方去申请，不用自己找网址
+              TextButton.icon(
+                onPressed: () => openDeepSeekPlatform(context),
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('打开 DeepSeek 开放平台申请'),
               ),
             ],
           ],

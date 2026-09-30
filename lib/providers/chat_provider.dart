@@ -94,6 +94,9 @@ class ChatProvider extends ChangeNotifier {
     _conversations.insert(0, c);
     _active = c;
     notifyListeners();
+    // 立刻落盘：否则这个空会话只存在于内存里，
+    // 下次打开应用时它不在存储索引中，会静默消失（已实测复现）。
+    await _storage.saveConversation(c);
     await _storage.saveActiveConversationId(c.id);
   }
 
@@ -137,6 +140,9 @@ class ChatProvider extends ChangeNotifier {
     _active = Conversation(id: Conversation.newId());
     _conversations.add(_active!);
     notifyListeners();
+    // 同 newConversation：新会话要落盘，否则下次打开时索引是空的
+    await _storage.saveConversation(_active!);
+    await _storage.saveActiveConversationId(_active!.id);
   }
 
   // ---------------------------------------------------------------- 发送
