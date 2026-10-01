@@ -9,7 +9,7 @@
 ///
 /// 下面这个默认值必须与 pubspec.yaml 的 version 保持一致
 /// （test/unit_test.dart 里有测试守着，改 pubspec 忘改这里会测试失败）。
-const String kAppVersion = '1.1.5';
+const String kAppVersion = '1.1.6';
 
 /// 创作者（显示在「关于」页）
 ///
@@ -18,6 +18,11 @@ const String kAppAuthor = 'tingwu-h';
 
 /// 创作者的 GitHub 主页（关于页里点「创作者」会跳到这里）
 const String kAuthorGithubUrl = 'https://github.com/tingwu-h';
+
+/// 创作者的 GitHub App scheme。
+///
+/// 装了 GitHub App 时会直接进 App，没装则回退到 [kAuthorGithubUrl] 网页版。
+const String kAuthorGithubScheme = 'github://github.com/tingwu-h';
 
 /// DeepSeek 开放平台地址（申请 API Key、充值、查用量）
 const String kDeepSeekPlatformUrl = 'https://platform.deepseek.com';

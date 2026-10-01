@@ -69,7 +69,7 @@ class AboutPage extends StatelessWidget {
               title: const Text('创作者'),
               subtitle: const Text(kAppAuthor),
               trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () => openExternalUrl(context, kAuthorGithubUrl),
+              onTap: () => openGithubProfile(context),
             ),
           ),
 
