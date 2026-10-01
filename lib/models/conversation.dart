@@ -10,6 +10,7 @@ class Conversation {
     List<ChatMessage>? messages,
     DateTime? createdAt,
     DateTime? updatedAt,
+    this.customTitle,
   })  : messages = messages ?? <ChatMessage>[],
         createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
@@ -23,8 +24,18 @@ class Conversation {
 
   DateTime updatedAt;
 
-  /// 列表里显示的标题：第一条用户消息的前 20 个字
+  /// 用户手动改的名字。为 null 时按第一条用户消息自动生成标题。
+  ///
+  /// 用 String? 而不是空串表示"没改名"，这样用户把名字清空等于恢复自动标题。
+  String? customTitle;
+
+  /// 用户是否手动命名过
+  bool get hasCustomTitle => (customTitle ?? '').trim().isNotEmpty;
+
+  /// 列表里显示的标题：优先用户改过的名字，否则取第一条用户消息的前 20 个字
   String get title {
+    final String custom = (customTitle ?? '').trim();
+    if (custom.isNotEmpty) return custom;
     for (final ChatMessage m in messages) {
       if (m.isUser && m.content.trim().isNotEmpty) {
         final String t = m.content.replaceAll('\n', ' ').trim();
@@ -56,6 +67,7 @@ class Conversation {
         'id': id,
         'createdAt': createdAt.millisecondsSinceEpoch,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
+        if (hasCustomTitle) 'customTitle': customTitle,
         'messages': messages.map((ChatMessage m) => m.toJson()).toList(),
       };
 
@@ -73,6 +85,7 @@ class Conversation {
       updatedAt: json['updatedAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(json['updatedAt'] as int)
           : null,
+      customTitle: json['customTitle'] as String?,
     );
   }
 

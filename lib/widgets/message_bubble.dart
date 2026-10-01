@@ -142,6 +142,18 @@ class _MessageBubbleState extends State<MessageBubble> {
                           height: 1.42,
                         ),
                       )
+                    else if (widget.showTyping)
+                      // 正在流式输出：先用纯文本渲染。
+                      // MarkdownBody 每来一个字都要重新解析整段内容，
+                      // 回答越长越慢，是切换会话/长回答时卡顿的主因之一。
+                      // 等生成完再切成 Markdown 渲染（见下面的 else）。
+                      SelectableText(
+                        message.content,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: textColor,
+                          height: 1.45,
+                        ),
+                      )
                     else
                       MarkdownBody(
                         data: message.content,

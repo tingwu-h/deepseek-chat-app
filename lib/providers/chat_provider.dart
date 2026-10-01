@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
@@ -130,6 +132,20 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 给会话改名。
+  ///
+  /// [name] 传空串表示恢复自动标题（取第一条用户消息）。
+  /// 改名不改变 updatedAt 的排序语义，但因为会重新保存一次，
+  /// 该会话会被排到列表最前——这是可接受的，符合「刚操作过的在最上面」。
+  Future<void> renameConversation(String id, String name) async {
+    final int idx = _conversations.indexWhere((Conversation c) => c.id == id);
+    if (idx < 0) return;
+    final String trimmed = name.trim();
+    _conversations[idx].customTitle = trimmed.isEmpty ? null : trimmed;
+    notifyListeners();
+    await _storage.saveConversation(_conversations[idx]);
+  }
+
   /// 清空全部会话
   Future<void> clearAllConversations() async {
     _activeToken++;
@@ -184,6 +200,20 @@ class ChatProvider extends ChangeNotifier {
         .toList();
 
     bool receivedAny = false;
+    // 流式输出时不要每收到一个 chunk 就重建界面：
+    // 服务端可能每秒推几十次，每次都重建整棵组件树 + 重解析 Markdown 会明显卡顿。
+    // 这里按帧节流（约 30fps），视觉上仍是"逐字出现"，但渲染压力降一个量级。
+    bool pendingNotify = false;
+    Timer? notifier;
+    void scheduleNotify() {
+      if (pendingNotify) return;
+      pendingNotify = true;
+      notifier = Timer(const Duration(milliseconds: 32), () {
+        pendingNotify = false;
+        notifyListeners();
+      });
+    }
+
     try {
       await for (final ChatChunk chunk
           in _api.streamChat(settings: settings, history: context)) {
@@ -196,7 +226,7 @@ class ChatProvider extends ChangeNotifier {
         } else {
           assistant.content += chunk.text;
         }
-        notifyListeners();
+        scheduleNotify();
       }
 
       final bool finished = token == _activeToken;
@@ -218,6 +248,8 @@ class ChatProvider extends ChangeNotifier {
       }
       if (token == _activeToken) _error = msg;
     } finally {
+      // 收尾：先取消尚未触发的节流定时器，避免它在 _loading 变 false 后再通知一次
+      notifier?.cancel();
       // 空内容气泡直接丢掉，避免历史里出现空白消息
       if (assistant.isBlank) {
         conv.messages.remove(assistant);

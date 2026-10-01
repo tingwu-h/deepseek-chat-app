@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:deepseek_chat/utils/app_info.dart';
+import 'package:deepseek_chat/utils/link_actions.dart';
 
 /// 关于页：版本号、创作者、相关链接。
 ///
@@ -62,12 +62,14 @@ class AboutPage extends StatelessWidget {
 
           const SizedBox(height: 28),
 
-          // 创作者
-          const Card(
+          // 创作者：点了跳到 GitHub 主页
+          Card(
             child: ListTile(
-              leading: Icon(Icons.person_outline),
-              title: Text('创作者'),
-              subtitle: Text(kAppAuthor),
+              leading: const Icon(Icons.person_outline),
+              title: const Text('创作者'),
+              subtitle: const Text(kAppAuthor),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => openExternalUrl(context, kAuthorGithubUrl),
             ),
           ),
 
@@ -143,22 +145,8 @@ class _LinkTile extends StatelessWidget {
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.open_in_new, size: 18),
-      onTap: () async {
-        final Uri uri = Uri.parse(url);
-        final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-        try {
-          final bool ok = await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
-          );
-          if (!ok) throw Exception('无法打开');
-        } catch (_) {
-          // 没有浏览器可用时，至少把网址告诉用户，而不是静默失败
-          messenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text('无法打开链接：$url')));
-        }
-      },
+      // 逻辑统一在 link_actions.dart（失败时会把网址显示出来）
+      onTap: () => openExternalUrl(context, url),
     );
   }
 }

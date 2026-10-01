@@ -100,6 +100,39 @@ void main() {
     expect(reloaded.conversations.length, greaterThanOrEqualTo(2));
   });
 
+  test('重命名会话会落盘，重载后名字还在', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final StorageService storage = StorageService();
+    final ChatProvider p = ChatProvider(
+      api: DeepSeekService(),
+      storage: storage,
+    );
+    await p.init();
+    await p.send('原始内容', _fakeSettings());
+    final String id = p.activeConversationId!;
+
+    // 改名前是自动标题
+    expect(p.activeTitle, '原始内容');
+
+    await p.renameConversation(id, '我的自定义名字');
+    expect(p.activeTitle, '我的自定义名字');
+
+    // 重载后仍是自定义名字
+    final ChatProvider reloaded = ChatProvider(
+      api: DeepSeekService(),
+      storage: storage,
+    );
+    await reloaded.init();
+    final custom = reloaded.conversations.firstWhere((c) => c.id == id);
+    expect(custom.title, '我的自定义名字');
+    expect(custom.hasCustomTitle, isTrue);
+
+    // 传空串应恢复自动标题
+    await reloaded.renameConversation(id, '   ');
+    expect(reloaded.conversations.firstWhere((c) => c.id == id).title,
+        '原始内容');
+  });
+
   test('存储里缺索引 key 但内容还在时，不应当静默丢光（当前行为的记录）', () async {
     // 记录一个真实的脆弱点：读取完全依赖 ds_conversations 这个索引。
     // 如果索引丢了（或写入中断），内容即使还在 ds_conv_* 里也读不出来。

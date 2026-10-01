@@ -174,6 +174,8 @@ class _ChatPageState extends State<ChatPage> {
           activeId: chat.activeConversationId,
           onNew: _newConversation,
           onSelect: (String id) => chat.switchConversation(id),
+          onRename: (String id, String name) =>
+              chat.renameConversation(id, name),
           onDelete: (String id) => chat.deleteConversation(id),
           onOpenSettings: _openSettings,
           onClearAll: () => chat.clearAllConversations(),
