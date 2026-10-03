@@ -10,6 +10,7 @@ import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/utils/formatters.dart';
 import 'package:deepseek_chat/widgets/typing_indicator.dart';
+import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 单条聊天气泡：用户消息靠右，助手消息靠左。
 ///
@@ -94,9 +95,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                 const SizedBox(width: 4),
                 Text(
                   isUser
-                      ? '我'
+                      ? tr(context, '我')
                       : (message.providerId == null
-                            ? '万象'
+                            ? tr(context, '万象')
                             : presetFor(message.providerId!).name),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
@@ -146,7 +147,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                         const SizedBox(height: 6),
                     ],
                     if (message.content.isEmpty && widget.showTyping)
-                      const TypingIndicator(label: '正在生成回答')
+                      TypingIndicator(label: tr(context, '正在生成回答'))
                     else if (message.content.isEmpty &&
                         (message.attachments.isNotEmpty || message.hasThinking))
                       // 只有附件或只有思考内容时，不显示空正文
@@ -239,7 +240,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    expanded ? '思考过程（点击收起）' : '思考过程（$chars 字，点击展开）',
+                    expanded
+                        ? tr(context, '思考过程（点击收起）')
+                        : tr(context, '思考过程（{count} 字，点击展开）', {'count': chars}),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
@@ -294,7 +297,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                     height: 80,
                     alignment: Alignment.center,
                     color: scheme.surface.withValues(alpha: 0.5),
-                    child: const Text('图片已不在本地'),
+                    child: Text(tr(context, '图片已不在本地')),
                   ),
                 ),
               ),
@@ -354,9 +357,12 @@ class _MessageBubbleState extends State<MessageBubble> {
             maxScale: 5,
             child: Image.file(
               File(a.path),
-              errorBuilder: (_, __, ___) => const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('图片已不在本地', style: TextStyle(color: Colors.white)),
+              errorBuilder: (_, __, ___) => Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  tr(context, '图片已不在本地'),
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ),
           ),
@@ -371,9 +377,9 @@ class _MessageBubbleState extends State<MessageBubble> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('已复制这条消息'),
-          duration: Duration(milliseconds: 1200),
+        SnackBar(
+          content: Text(tr(context, '已复制这条消息')),
+          duration: const Duration(milliseconds: 1200),
         ),
       );
   }

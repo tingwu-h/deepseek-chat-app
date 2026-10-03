@@ -14,6 +14,9 @@ class AppSettings {
     this.systemPrompt = '',
     this.temperature = 1.0,
     this.themeMode = 'system',
+    this.language = 'zh_CN',
+    this.chatBackgroundColor = '',
+    this.chatBackgroundImage = '',
   });
 
   /// DeepSeek 官方 API 基地址
@@ -93,6 +96,9 @@ class AppSettings {
       'profiles': saved,
       'themeMode': themeMode,
       'systemPrompt': systemPrompt,
+      'language': language,
+      'chatBackgroundColor': chatBackgroundColor,
+      'chatBackgroundImage': chatBackgroundImage,
     });
   }
 
@@ -113,6 +119,9 @@ class AppSettings {
   final String systemPrompt;
   final double temperature;
   final String themeMode;
+  final String language;
+  final String chatBackgroundColor;
+  final String chatBackgroundImage;
 
   bool get hasApiKey => apiKey.trim().isNotEmpty;
 
@@ -136,6 +145,9 @@ class AppSettings {
     String? systemPrompt,
     double? temperature,
     String? themeMode,
+    String? language,
+    String? chatBackgroundColor,
+    String? chatBackgroundImage,
   }) {
     return AppSettings(
       savedModels: {
@@ -155,6 +167,9 @@ class AppSettings {
       systemPrompt: systemPrompt ?? this.systemPrompt,
       temperature: temperature ?? this.temperature,
       themeMode: themeMode ?? this.themeMode,
+      language: language ?? this.language,
+      chatBackgroundColor: chatBackgroundColor ?? this.chatBackgroundColor,
+      chatBackgroundImage: chatBackgroundImage ?? this.chatBackgroundImage,
     );
   }
 
@@ -170,6 +185,9 @@ class AppSettings {
     'systemPrompt': systemPrompt,
     'temperature': temperature,
     'themeMode': themeMode,
+    'language': language,
+    'chatBackgroundColor': chatBackgroundColor,
+    'chatBackgroundImage': chatBackgroundImage,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -187,6 +205,11 @@ class AppSettings {
       systemPrompt: (json['systemPrompt'] as String?) ?? '',
       temperature: (json['temperature'] as num?)?.toDouble() ?? 1.0,
       themeMode: (json['themeMode'] as String?) ?? 'system',
+      language: ['zh_CN', 'zh_TW', 'en'].contains(json['language'])
+          ? json['language'] as String
+          : 'zh_CN',
+      chatBackgroundColor: json['chatBackgroundColor'] as String? ?? '',
+      chatBackgroundImage: json['chatBackgroundImage'] as String? ?? '',
     );
   }
 }

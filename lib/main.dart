@@ -1,3 +1,4 @@
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -72,6 +73,17 @@ class DeepSeekChatApp extends StatelessWidget {
         builder: (BuildContext context, AppSettingsProvider settings, _) {
           return MaterialApp(
             title: '万象',
+            locale: switch (settings.settings.language) {
+              'en' => const Locale('en'),
+              'zh_TW' => const Locale('zh', 'TW'),
+              _ => const Locale('zh', 'CN'),
+            },
+            supportedLocales: const [
+              Locale('zh', 'CN'),
+              Locale('zh', 'TW'),
+              Locale('en'),
+            ],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
             debugShowCheckedModeBanner: false,
             themeMode: _themeModeFor(settings.themeModeName),
             theme: AppTheme.light(),

@@ -76,6 +76,18 @@ class AppSettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateAppearance({
+    String? language,
+    String? color,
+    String? image,
+  }) => replace(
+    _settings.copyWith(
+      language: language,
+      chatBackgroundColor: color,
+      chatBackgroundImage: image,
+    ),
+  );
+
   /// 一键恢复默认（会同时清空 API Key）
   Future<void> resetToDefaults() => replace(AppSettings());
 }

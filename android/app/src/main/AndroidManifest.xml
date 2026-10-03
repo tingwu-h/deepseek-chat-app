@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 调用 DeepSeek API 需要联网权限 -->
+    <!-- 调用模型 API 需要联网权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 用于「测试连接」时判断网络状态（可选，不加也不影响） -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -7,7 +7,7 @@
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/wanxiang_launcher"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"

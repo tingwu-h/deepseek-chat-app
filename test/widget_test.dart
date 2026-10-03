@@ -95,8 +95,8 @@ void main() {
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 顶栏标题与空态引导都写「新对话」
-    expect(find.text('新对话'), findsNWidgets(2));
+    // 模型选择在顶栏；新对话提示只保留在空态。
+    expect(find.text('新对话'), findsOneWidget);
     expect(find.text('给万象发消息…'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
     // 空态不再重复教「怎么发消息」（输入框已有提示）
@@ -104,9 +104,7 @@ void main() {
     expect(find.textContaining('在下面输入问题'), findsNothing);
   });
 
-  testWidgets('⋮ 菜单只有清空当前对话，不重复停止生成（回归：停止已在发送按钮上）', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('⋮ 菜单包含新建与清空，停止生成保留在输入栏', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -114,6 +112,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
 
+    expect(find.text('新建对话'), findsOneWidget);
     expect(find.text('清空当前对话'), findsOneWidget);
     // 停止生成不该出现在菜单里——它已经集成在发送按钮上（生成时变 ⏹）
     expect(find.text('停止生成'), findsNothing);
@@ -129,7 +128,7 @@ void main() {
     // 顶栏不再有齿轮图标
     expect(find.byIcon(Icons.settings_outlined), findsNothing);
 
-    // ⋮ 菜单里只有「清空当前对话」，没有设置
+    // ⋮ 菜单里有新建与清空，没有重复设置入口
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     expect(find.text('清空当前对话'), findsOneWidget);
@@ -144,7 +143,7 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
   });
 
-  testWidgets('顶栏有新建对话按钮，点了会开新会话', (WidgetTester tester) async {
+  testWidgets('更多菜单可以新建对话，并保留原会话', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -161,7 +160,10 @@ void main() {
     expect(h.chat.messages.length, 2);
     final String? firstId = h.chat.activeConversationId;
 
-    await tester.tap(find.byIcon(Icons.add_comment_outlined));
+    expect(find.byIcon(Icons.add_comment_outlined), findsNothing);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('新建对话'));
     await tester.pumpAndSettle();
 
     // 新会话应为空，且 id 变了
@@ -293,6 +295,77 @@ void main() {
     );
     expect(h.settings.themeModeName, 'dark');
   });
+
+  testWidgets(
+    'single-row toolbar fits a small screen and keeps the model accessible',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final h = await _buildHarness();
+      await h.settings.selectProvider('anthropic');
+      await h.settings.update(model: 'a-very-long-custom-model-name');
+      await tester.pumpWidget(h.app);
+      await tester.pumpAndSettle();
+      final bar = tester.widget<AppBar>(find.byType(AppBar));
+      expect(bar.bottom, isNull);
+      expect(bar.preferredSize.height, 56);
+      expect(tester.getSize(find.byType(AppBar)).height, 56);
+      expect(find.byIcon(Icons.add_comment_outlined), findsNothing);
+      await tester.tap(find.byTooltip('切换模型'));
+      await tester.pumpAndSettle();
+      expect(find.text('a-very-long-custom-model-name'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'clear current remains confirmed and preserves other conversations',
+    (tester) async {
+      final h = await _buildHarness();
+      await tester.pumpWidget(h.app);
+      await tester.enterText(find.byType(TextField), '保留这段对话');
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 100 && h.chat.isLoading; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(h.chat.messages.length, 2);
+      expect(h.chat.isLoading, isFalse);
+      final original = h.chat.activeConversationId;
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('新建对话'));
+      await tester.pumpAndSettle();
+      final target = h.chat.activeConversationId;
+      expect(target, isNot(original));
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('清空当前对话'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(h.chat.activeConversationId, target);
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('清空当前对话'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('清空'));
+      await tester.pumpAndSettle();
+      expect(h.chat.conversations.any((c) => c.id == target), isFalse);
+      expect(
+        h.chat.conversations.any(
+          (c) => c.id == original && c.messages.isNotEmpty,
+        ),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   test('AppSettings 默认值正确', () {
     final AppSettings s = AppSettings();

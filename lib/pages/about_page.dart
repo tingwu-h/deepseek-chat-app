@@ -1,3 +1,4 @@
+import 'package:deepseek_chat/utils/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import 'package:deepseek_chat/utils/app_info.dart';
@@ -19,7 +20,7 @@ class AboutPage extends StatelessWidget {
     final ColorScheme scheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('关于')),
+      appBar: AppBar(title: Text(tr(context, '关于'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
         children: <Widget>[
@@ -41,14 +42,14 @@ class AboutPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '万象',
+                  tr(context, '万象'),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '版本 v$kAppVersion',
+                  tr(context, '版本 v{version}', {'version': kAppVersion}),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -63,7 +64,7 @@ class AboutPage extends StatelessWidget {
           Card(
             child: ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('创作者'),
+              title: Text(tr(context, '创作者')),
               subtitle: const Text(kAppAuthor),
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () => openGithubProfile(context),
@@ -73,19 +74,19 @@ class AboutPage extends StatelessWidget {
           const SizedBox(height: 12),
 
           // 链接
-          const Card(
+          Card(
             child: Column(
               children: <Widget>[
                 _LinkTile(
                   icon: Icons.code,
-                  title: '项目源码',
-                  subtitle: '源码公开，禁止商用',
+                  title: tr(context, '项目源码'),
+                  subtitle: tr(context, '源码公开，禁止商用'),
                   url: _repoUrl,
                 ),
                 _LinkTile(
                   icon: Icons.description_outlined,
-                  title: '使用许可',
-                  subtitle: '万象非商业使用许可证',
+                  title: tr(context, '使用许可'),
+                  subtitle: tr(context, '万象非商业使用许可证'),
                   url: '$_repoUrl/blob/main/LICENSE',
                 ),
               ],
@@ -98,8 +99,12 @@ class AboutPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              '本应用是个人作品，与各模型服务商无隶属关系。\n'
-              'API Key 在本机加密保存；请求时，密钥和聊天内容发送到你为当前服务商设置的接口。',
+              localized(
+                context,
+                '本应用是个人作品，与各模型服务商无隶属关系。\nAPI Key 在本机加密保存；请求时，密钥和聊天内容发送到你为当前服务商设置的接口。',
+                '本應用為個人作品，與模型服務商無隸屬關係。\nAPI Key 在本機加密儲存；請求時金鑰與聊天內容會傳送至你設定的介面。',
+                'An independent app, unaffiliated with model providers.\nAPI keys are encrypted on this device. Requests send your key and chat content to the endpoint you configure.',
+              ),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,

@@ -1,3 +1,4 @@
+import 'package:deepseek_chat/utils/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -114,14 +115,14 @@ class _EmptyHint extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '新对话',
+              tr(context, '新对话'),
               style: Theme.of(context).textTheme.titleMedium
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
             if (!hasApiKey) ...<Widget>[
               const SizedBox(height: 8),
               Text(
-                '还没配置 API Key，从左侧抽屉进入「设置」填写。',
+                tr(context, '还没配置 API Key，从左侧抽屉进入「设置」填写。'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: scheme.onSurfaceVariant),
@@ -131,7 +132,7 @@ class _EmptyHint extends StatelessWidget {
               TextButton.icon(
                 onPressed: () => Navigator.pushNamed(context, '/settings'),
                 icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('配置模型服务商'),
+                label: Text(tr(context, '配置模型服务商')),
               ),
             ],
           ],

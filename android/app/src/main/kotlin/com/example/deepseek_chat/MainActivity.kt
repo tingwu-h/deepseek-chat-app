@@ -25,6 +25,30 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 try {
                     when (call.method) {
+                        "compressImage" -> {
+                            val input = call.argument<String>("path") ?: error("Missing path")
+                            val output = call.argument<String>("output") ?: error("Missing output")
+                            Thread {
+                                try {
+                                    val bitmap = android.graphics.BitmapFactory.decodeFile(input) ?: error("Invalid image")
+                                    try {
+                                        var bytes: ByteArray
+                                        var quality = 92
+                                        do {
+                                            val stream = java.io.ByteArrayOutputStream()
+                                            check(bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream))
+                                            bytes = stream.toByteArray()
+                                            quality -= 10
+                                        } while (bytes.size > 5 * 1024 * 1024 && quality >= 22)
+                                        check(bytes.size <= 5 * 1024 * 1024)
+                                        java.io.File(output).writeBytes(bytes)
+                                        runOnUiThread { result.success(output) }
+                                    } finally { bitmap.recycle() }
+                                } catch (e: Exception) {
+                                    runOnUiThread { result.error("IMAGE_FAILED", "Could not compress image", null) }
+                                }
+                            }.start()
+                        }
                         "readKey" -> result.success(readKey())
                         "writeKey" -> { writeKey(call.arguments as String); result.success(null) }
                         "goToDesktop" -> { moveTaskToBack(true); result.success(null) }

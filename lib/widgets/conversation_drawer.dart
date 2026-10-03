@@ -1,15 +1,15 @@
+import 'package:deepseek_chat/utils/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import 'package:deepseek_chat/models/conversation.dart';
 import 'package:deepseek_chat/utils/formatters.dart';
 
-/// 左侧抽屉：会话列表（新建 / 切换 / 重命名 / 删除）。
+/// 左侧抽屉：会话列表（切换 / 重命名 / 删除）。
 class ConversationDrawer extends StatelessWidget {
   const ConversationDrawer({
     super.key,
     required this.conversations,
     required this.activeId,
-    required this.onNew,
     required this.onSelect,
     required this.onRename,
     required this.onDelete,
@@ -19,7 +19,6 @@ class ConversationDrawer extends StatelessWidget {
 
   final List<Conversation> conversations;
   final String? activeId;
-  final VoidCallback onNew;
   final ValueChanged<String> onSelect;
 
   /// 改名：(会话 id, 新名字)。传空串表示恢复自动标题。
@@ -36,33 +35,23 @@ class ConversationDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: <Widget>[
-            // 顶部：新建对话
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-              child: FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(context).pop(); // 先关抽屉
-                  onNew();
-                },
-                icon: const Icon(Icons.add_comment_outlined),
-                label: const Text('新建对话'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                ),
-              ),
-            ),
+            const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: <Widget>[
                   Text(
-                    '历史对话',
+                    tr(context, '历史对话'),
                     style: Theme.of(context).textTheme.labelMedium
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                   const Spacer(),
                   Text(
-                    '${conversations.where((Conversation c) => !c.isEmpty).length} 条',
+                    tr(context, '{count} 条', {
+                      'count': conversations
+                          .where((Conversation c) => !c.isEmpty)
+                          .length,
+                    }),
                     style: Theme.of(context).textTheme.labelSmall
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
@@ -75,7 +64,7 @@ class ConversationDrawer extends StatelessWidget {
               child: conversations.isEmpty
                   ? Center(
                       child: Text(
-                        '还没有历史对话',
+                        tr(context, '还没有历史对话'),
                         style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
@@ -125,7 +114,7 @@ class ConversationDrawer extends StatelessWidget {
                           onLongPress: () =>
                               _showRenameDialog(context, c, onRename: onRename),
                           trailing: PopupMenuButton<String>(
-                            tooltip: '更多',
+                            tooltip: tr(context, '更多'),
                             icon: const Icon(Icons.more_vert, size: 18),
                             onSelected: (String v) {
                               if (v == 'rename') {
@@ -139,14 +128,14 @@ class ConversationDrawer extends StatelessWidget {
                               }
                             },
                             itemBuilder: (BuildContext ctx) =>
-                                const <PopupMenuEntry<String>>[
+                                <PopupMenuEntry<String>>[
                                   PopupMenuItem<String>(
                                     value: 'rename',
                                     child: ListTile(
                                       dense: true,
                                       contentPadding: EdgeInsets.zero,
-                                      leading: Icon(Icons.edit_outlined),
-                                      title: Text('重命名'),
+                                      leading: const Icon(Icons.edit_outlined),
+                                      title: Text(tr(context, '重命名')),
                                     ),
                                   ),
                                   PopupMenuItem<String>(
@@ -154,8 +143,8 @@ class ConversationDrawer extends StatelessWidget {
                                     child: ListTile(
                                       dense: true,
                                       contentPadding: EdgeInsets.zero,
-                                      leading: Icon(Icons.delete_outline),
-                                      title: Text('删除'),
+                                      leading: const Icon(Icons.delete_outline),
+                                      title: Text(tr(context, '删除')),
                                     ),
                                   ),
                                 ],
@@ -172,7 +161,7 @@ class ConversationDrawer extends StatelessWidget {
             // 底部：设置 / 清空
             ListTile(
               leading: const Icon(Icons.settings_outlined),
-              title: const Text('设置'),
+              title: Text(tr(context, '设置')),
               onTap: () {
                 Navigator.of(context).pop();
                 onOpenSettings();
@@ -180,21 +169,21 @@ class ConversationDrawer extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.delete_sweep_outlined),
-              title: const Text('清空全部对话'),
+              title: Text(tr(context, '清空全部对话')),
               onTap: () async {
                 final bool? ok = await showDialog<bool>(
                   context: context,
                   builder: (BuildContext ctx) => AlertDialog(
-                    title: const Text('清空全部对话？'),
-                    content: const Text('所有历史对话都会被删除，此操作无法撤销。'),
+                    title: Text(tr(context, '清空全部对话？')),
+                    content: Text(tr(context, '所有历史对话都会被删除，此操作无法撤销。')),
                     actions: <Widget>[
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('取消'),
+                        child: Text(tr(context, '取消')),
                       ),
                       FilledButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('清空'),
+                        child: Text(tr(context, '清空')),
                       ),
                     ],
                   ),
@@ -223,25 +212,25 @@ Future<void> _showRenameDialog(
   final String? result = await showDialog<String>(
     context: context,
     builder: (BuildContext ctx) => AlertDialog(
-      title: const Text('重命名对话'),
+      title: Text(tr(context, '重命名对话')),
       content: TextField(
         controller: controller,
         autofocus: true,
         maxLength: 40,
-        decoration: const InputDecoration(
-          hintText: '给这个对话起个名字',
-          helperText: '留空则恢复为自动标题',
+        decoration: InputDecoration(
+          hintText: tr(context, '给这个对话起个名字'),
+          helperText: tr(context, '留空则恢复为自动标题'),
         ),
         onSubmitted: (String v) => Navigator.pop(ctx, v),
       ),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('取消'),
+          child: Text(tr(context, '取消')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, controller.text),
-          child: const Text('确定'),
+          child: Text(tr(context, '确定')),
         ),
       ],
     ),
@@ -260,16 +249,16 @@ Future<void> _confirmDelete(
   final bool? ok = await showDialog<bool>(
     context: context,
     builder: (BuildContext ctx) => AlertDialog(
-      title: const Text('删除这个对话？'),
-      content: Text('「${conv.title}」将被永久删除。'),
+      title: Text(tr(context, '删除这个对话？')),
+      content: Text(tr(context, '「{title}」将被永久删除。', {'title': conv.title})),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('取消'),
+          child: Text(tr(context, '取消')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('删除'),
+          child: Text(tr(context, '删除')),
         ),
       ],
     ),

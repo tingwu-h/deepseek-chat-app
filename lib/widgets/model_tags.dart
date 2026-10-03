@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:deepseek_chat/models/model_info.dart';
+import 'package:deepseek_chat/utils/app_localizations.dart';
 
 class ModelTags extends StatelessWidget {
   const ModelTags({super.key, required this.providerId, required this.model});
@@ -21,7 +22,7 @@ class ModelTags extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              tag,
+              tr(context, tag),
               style: Theme.of(context).textTheme.labelSmall
                   ?.copyWith(color: scheme.onSecondaryContainer),
             ),

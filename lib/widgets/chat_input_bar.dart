@@ -1,3 +1,5 @@
+import 'package:deepseek_chat/utils/app_localizations.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -121,8 +123,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     style: Theme.of(context).textTheme.bodyMedium,
                     decoration: InputDecoration(
                       hintText: widget.enabled
-                          ? (widget.isLoading ? '正在回复…' : '给万象发消息…')
-                          : '请先在设置里填写 API Key',
+                          ? (widget.isLoading
+                                ? tr(context, '正在回复…')
+                                : tr(context, '给万象发消息…'))
+                          : tr(context, '请先在设置里填写 API Key'),
                       isDense: true,
                     ),
                   ),
@@ -218,31 +222,31 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool active = widget.enabled && !widget.isLoading;
     return PopupMenuButton<String>(
-      tooltip: '添加图片或文件',
+      tooltip: tr(context, '添加图片或文件'),
       enabled: active,
       onSelected: (String v) {
         if (v == 'image') widget.onPickImages();
         if (v == 'file') widget.onPickFiles();
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'image',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.image_outlined),
-            title: Text('图片'),
-            subtitle: Text('png / jpg / gif / webp'),
+            leading: const Icon(Icons.image_outlined),
+            title: Text(tr(context, '图片')),
+            subtitle: const Text('png / jpg / gif / webp'),
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'file',
           child: ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.attach_file),
-            title: Text('文件'),
-            subtitle: Text('txt / md / json / csv / 代码'),
+            leading: const Icon(Icons.attach_file),
+            title: Text(tr(context, '文件')),
+            subtitle: Text(tr(context, 'txt / md / json / csv / 代码')),
           ),
         ),
       ],
@@ -270,7 +274,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           HapticFeedback.selectionClick();
           widget.onStop();
         },
-        tooltip: '停止生成',
+        tooltip: tr(context, '停止生成'),
         icon: const Icon(Icons.stop_rounded),
         style: IconButton.styleFrom(
           minimumSize: const Size(48, 48),
@@ -289,7 +293,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               _submit();
             }
           : null,
-      tooltip: '发送',
+      tooltip: tr(context, '发送'),
       icon: const Icon(Icons.arrow_upward_rounded),
       style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
     );

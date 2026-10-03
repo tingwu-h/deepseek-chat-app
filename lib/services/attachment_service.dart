@@ -92,36 +92,35 @@ class AttachmentService {
   static const int maxTextChars = 60000;
 
   /// 选取图片（可多选）
-  Future<List<ChatAttachment>> pickImages() async {
-    final List<XFile> picked = await _picker.pickMultiImage(
-      // 限制尺寸与质量：base64 会放大约 1/3，压一压能显著减小请求体
-      maxWidth: 1600,
-      maxHeight: 1600,
-      imageQuality: 85,
-    );
+  Future<List<ChatAttachment>> pickImages({
+    required Future<File?> Function(String) edit,
+  }) async {
+    final List<XFile> picked = await _picker.pickMultiImage();
     if (picked.isEmpty) return <ChatAttachment>[];
     if (picked.length > maxAttachments) {
       throw AttachmentException('一次最多选择 6 张图片。');
     }
-    for (final x in picked) {
-      if (await x.length() > maxImageBytes) {
-        throw AttachmentException('图片 ${x.name} 超过 5 MB，请缩小后再试。');
-      }
-    }
-
     final List<ChatAttachment> result = <ChatAttachment>[];
-    for (final XFile x in picked) {
-      final File saved = await _persist(File(x.path), x.name);
-      result.add(
-        ChatAttachment(
-          name: x.name,
-          path: saved.path,
-          kind: 'image',
-          size: await saved.length(),
-        ),
-      );
+    try {
+      for (final XFile x in picked) {
+        final saved = await edit(x.path);
+        if (saved == null) continue;
+        result.add(
+          ChatAttachment(
+            name: saved.path.split(RegExp(r'[/\\]')).last,
+            path: saved.path,
+            kind: 'image',
+            size: await saved.length(),
+          ),
+        );
+      }
+      return result;
+    } catch (_) {
+      for (final a in result) {
+        await removeOwnedFile(a.path);
+      }
+      rethrow;
     }
-    return result;
   }
 
   /// 选取文件（文本类直接读入内容；图片走图像通道）
@@ -130,7 +129,9 @@ class AttachmentService {
   /// 不再有 FilePickerResult，pickFiles 直接返回 List<PlatformFile>，
   /// PlatformFile.size 也换成了 await file.length()。
   /// 用 8.x 的写法会编译不过，而 8.x 又因为 compileSdk 34 无法在本项目构建。
-  Future<List<ChatAttachment>> pickFiles() async {
+  Future<List<ChatAttachment>> pickFiles({
+    required Future<File?> Function(String) edit,
+  }) async {
     final List<PlatformFile> files = await FilePicker.pickFiles(
       type: FileType.any,
     );
@@ -161,14 +162,19 @@ class AttachmentService {
       ].contains(ext);
 
       if (isImage) {
-        if (await File(p).length() > maxImageBytes) {
-          rejected.add('${f.name}（图片超过 5 MB）');
-          continue;
+        final File? saved;
+        try {
+          saved = await edit(p);
+        } catch (_) {
+          for (final a in out.where((a) => a.isImage)) {
+            await removeOwnedFile(a.path);
+          }
+          rethrow;
         }
-        final File saved = await _persist(File(p), f.name);
+        if (saved == null) continue;
         out.add(
           ChatAttachment(
-            name: f.name,
+            name: saved.path.split(RegExp(r'[/\\]')).last,
             path: saved.path,
             kind: 'image',
             size: await saved.length(),
@@ -220,17 +226,5 @@ class AttachmentService {
       );
     }
     return out;
-  }
-
-  /// 复制到应用私有目录 attachments/
-  Future<File> _persist(File src, String name) async {
-    final Directory base = await getApplicationDocumentsDirectory();
-    final Directory dir = Directory('${base.path}/attachments');
-    if (!await dir.exists()) await dir.create(recursive: true);
-    final String safe =
-        '${DateTime.now().microsecondsSinceEpoch}_${name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')}';
-    final File dst = File('${dir.path}/$safe');
-    await src.copy(dst.path);
-    return dst;
   }
 }

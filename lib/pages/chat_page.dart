@@ -2,6 +2,9 @@ import 'package:deepseek_chat/models/model_info.dart';
 import 'package:deepseek_chat/models/provider_catalog.dart';
 
 import 'dart:async';
+import 'dart:io';
+
+import 'package:deepseek_chat/pages/image_editor_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,8 +19,9 @@ import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
+import 'package:deepseek_chat/utils/app_localizations.dart';
 
-/// 主页面：抽屉(历史会话) + 顶栏(标题/新建/模型/更多) + 气泡列表 + 输入栏。
+/// 主页面：抽屉(历史会话) + 单行顶栏(模型/更多) + 气泡列表 + 输入栏。
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
@@ -74,7 +78,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _backArmed = true;
       _backTimer?.cancel();
       _backTimer = Timer(const Duration(seconds: 2), () => _backArmed = false);
-      _showSnack('再按一次回到桌面');
+      _showSnack(tr(context, '再按一次回到桌面'));
       return;
     }
     _leaving = true;
@@ -99,8 +103,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: const Text('请先配置所选服务商的 API Key'),
-            action: SnackBarAction(label: '去设置', onPressed: _openSettings),
+            content: Text(tr(context, '请先配置所选服务商的 API Key')),
+            action: SnackBarAction(
+              label: tr(context, '去设置'),
+              onPressed: _openSettings,
+            ),
           ),
         );
       _openSettings();
@@ -110,7 +117,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     if (!settings.settings.supportsImages &&
         (_pending.any((a) => a.isImage) ||
             chat.messages.any((m) => m.attachments.any((a) => a.isImage)))) {
-      _showSnack('这个对话包含图片，请切换到支持图片的模型，并在设置中确认图片能力。');
+      _showSnack(tr(context, '这个对话包含图片，请切换到支持图片的模型，并在设置中确认图片能力。'));
       return false;
     }
 
@@ -126,29 +133,38 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   Future<void> _pickImages() async {
     try {
-      final List<ChatAttachment> picked = await _attachments.pickImages();
+      final List<ChatAttachment> picked = await _attachments.pickImages(
+        edit: _editImage,
+      );
       await _acceptAttachments(picked);
     } on AttachmentException catch (e) {
       _showSnack(e.message);
-    } catch (e) {
-      _showSnack('选择图片失败：$e');
+    } catch (_) {
+      if (mounted) _showSnack(tr(context, '选择图片失败，请重试'));
     }
   }
 
   Future<void> _pickFiles() async {
     try {
-      final List<ChatAttachment> picked = await _attachments.pickFiles();
+      final List<ChatAttachment> picked = await _attachments.pickFiles(
+        edit: _editImage,
+      );
       await _acceptAttachments(picked);
     } on AttachmentException catch (e) {
       _showSnack(e.message);
-    } catch (e) {
-      _showSnack('选择文件失败：$e');
+    } catch (_) {
+      if (mounted) _showSnack(tr(context, '选择文件失败，请重试'));
     }
   }
 
   void _removePending(ChatAttachment a) {
     setState(() => _pending.remove(a));
     if (a.isImage) unawaited(_deletePending([a]));
+  }
+
+  Future<File?> _editImage(String path) async {
+    if (!mounted) return null;
+    return ImageEditorPage.open(context, path);
   }
 
   Future<void> _acceptAttachments(List<ChatAttachment> picked) async {
@@ -171,7 +187,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         await AttachmentService.removeOwnedFile(a.path);
       }
     } catch (_) {
-      if (mounted) _showSnack('部分临时图片未能清理，请稍后重试。');
+      if (mounted) _showSnack(tr(context, '部分临时图片未能清理，请稍后重试。'));
     }
   }
 
@@ -209,16 +225,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final bool? ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('清空当前对话？'),
-        content: const Text('这个对话里的消息会被删除，此操作无法撤销。'),
+        title: Text(tr(context, '清空当前对话？')),
+        content: Text(tr(context, '这个对话里的消息会被删除，此操作无法撤销。')),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(tr(context, '取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('清空'),
+            child: Text(tr(context, '清空')),
           ),
         ],
       ),
@@ -227,7 +243,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       final ChatProvider chat = context.read<ChatProvider>();
       final String? id = chat.activeConversationId;
       if (id != null) await chat.deleteConversation(id);
-      if (mounted) _showSnack('已清空当前对话');
+      if (mounted) _showSnack(tr(context, '已清空当前对话'));
     }
   }
 
@@ -264,7 +280,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         drawer: ConversationDrawer(
           conversations: chat.conversations,
           activeId: chat.activeConversationId,
-          onNew: _newConversation,
           onSelect: (String id) async {
             await _clearPending();
             await chat.switchConversation(id);
@@ -286,62 +301,37 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ),
         appBar: AppBar(
           leading: IconButton(
-            tooltip: '历史对话',
+            tooltip: tr(context, '历史对话'),
             icon: const Icon(Icons.menu),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text(
-                chat.activeTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                chat.isLoading
-                    ? '正在为你整理回答…'
-                    : '万象 · ${settings.hasApiKey ? '多模型对话' : '请配置密钥'}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(48),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16, bottom: 4),
-                child: _buildModelSelector(settings, chat),
-              ),
-            ),
-          ),
+          toolbarHeight: 56,
+          titleSpacing: 0,
+          title: _buildModelSelector(settings, chat),
           actions: <Widget>[
-            IconButton(
-              tooltip: '新建对话',
-              onPressed: _newConversation,
-              icon: const Icon(Icons.add_comment_outlined),
-            ),
-            // ⋮ 菜单只有「清空当前对话」这一项。
-            // 停止生成已集成在发送按钮上（生成时它会变成 ⏹），不再在这里重复一份。
             PopupMenuButton<String>(
-              tooltip: '清空当前对话',
+              tooltip: tr(context, '对话操作'),
               onSelected: (String value) {
+                if (value == 'new') _newConversation();
                 if (value == 'clear') _confirmClearCurrent();
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
+                  value: 'new',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.add_comment_outlined),
+                    title: Text(tr(context, '新建对话')),
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: 'clear',
                   child: ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.delete_outline),
-                    title: Text('清空当前对话'),
+                    leading: const Icon(Icons.delete_outline),
+                    title: Text(tr(context, '清空当前对话')),
                   ),
                 ),
               ],
@@ -351,9 +341,34 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         body: Column(
           children: <Widget>[
             Expanded(
-              child: MessageListView(
-                messages: chat.messages,
-                isLoading: chat.isLoading,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ColoredBox(
+                    color: Color(
+                      int.tryParse(
+                            settings.settings.chatBackgroundColor,
+                            radix: 16,
+                          ) ??
+                          Theme.of(context).colorScheme.surface.toARGB32(),
+                    ),
+                  ),
+                  if (settings.settings.chatBackgroundImage.isNotEmpty)
+                    Image.file(
+                      File(settings.settings.chatBackgroundImage),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  if (settings.settings.chatBackgroundImage.isNotEmpty)
+                    ColoredBox(
+                      color: Theme.of(context).colorScheme.surface
+                          .withValues(alpha: .25),
+                    ),
+                  MessageListView(
+                    messages: chat.messages,
+                    isLoading: chat.isLoading,
+                  ),
+                ],
               ),
             ),
             ChatInputBar(
@@ -377,7 +392,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final String current = provider.model;
     return PopupMenuButton<String>(
       enabled: !chat.isLoading,
-      tooltip: '切换模型',
+      tooltip: tr(context, '切换模型'),
       initialValue: current,
       onSelected: (String value) async {
         try {
@@ -389,11 +404,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
           await chat.bindModel(provider.settings);
         } catch (_) {
-          if (mounted) _showSnack('配置未能保存，请重试');
+          if (mounted) _showSnack(tr(context, '配置未能保存，请重试'));
           return;
         }
         if (!mounted) return;
-        _showSnack('已切换到 $value');
+        _showSnack(tr(context, '已切换到 {model}', {'model': provider.model}));
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
         for (final String m in provider.settings.modelChoices.where(
@@ -421,24 +436,35 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           PopupMenuItem(value: 'provider:${p.id}', child: Text(p.name)),
         const PopupMenuDivider(),
       ],
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Chip(
-          visualDensity: VisualDensity.compact,
-          avatar: const Icon(Icons.memory_outlined, size: 16),
-          label: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 240),
-            child: Text(
-              '${provider.settings.preset.name.split(' · ').first} · ${AppSettings.modelShortName(current)}',
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+      child: Semantics(
+        button: true,
+        label: tr(context, '当前模型：{model}', {
+          'model': '${provider.settings.preset.name}, $current',
+        }),
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  '${provider.settings.preset.name.split(' · ').first} · ${AppSettings.modelShortName(current)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: chat.isLoading
+                        ? Theme.of(context).disabledColor
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.expand_more,
+                size: 20,
+                color: chat.isLoading ? Theme.of(context).disabledColor : null,
+              ),
+            ],
           ),
-          // 生成过程中不让切，避免中途换模型造成上下文混乱
-          backgroundColor: chat.isLoading
-              ? Theme.of(context).colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.5)
-              : null,
         ),
       ),
     );

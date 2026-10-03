@@ -9,7 +9,7 @@
 ///
 /// 下面这个默认值必须与 pubspec.yaml 的 version 保持一致
 /// （test/unit_test.dart 里有测试守着，改 pubspec 忘改这里会测试失败）。
-const String kAppVersion = '1.2.1';
+const String kAppVersion = '1.2.2';
 
 /// 创作者（显示在「关于」页）
 ///
