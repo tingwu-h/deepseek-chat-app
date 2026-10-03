@@ -423,6 +423,24 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('深色'));
     await tester.pumpAndSettle();
+    final language = find.byKey(const ValueKey('language-setting'));
+    await tester.ensureVisible(language);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getBottomLeft(find.text('主题立即生效')).dy,
+      lessThan(tester.getTopLeft(language).dy),
+    );
+    await screenshot('appearance');
+    await tester.tap(language);
+    await tester.pumpAndSettle();
+    await screenshot('language-picker');
+    await tester.tap(find.byKey(const ValueKey('language-option-en')));
+    await tester.pumpAndSettle();
+    await screenshot('appearance-en');
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('section-appearance')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('section-appearance')));
     await tester.pumpAndSettle();
     await screenshot('settings-dark');

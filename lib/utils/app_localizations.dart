@@ -29,6 +29,8 @@ String tr(
 }
 
 const _labels = <String, (String, String)>{
+  '多模型聚合': ('多模型聚合', 'Model aggregation'),
+  '免费模型入口': ('免費模型入口', 'Free model access'),
   '版本 v{version}': ('版本 v{version}', 'Version v{version}'),
   '回答发散度  {value}': ('回答發散度  {value}', 'Creativity  {value}'),
   '当前模型：{model}': ('目前模型：{model}', 'Current model: {model}'),

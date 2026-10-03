@@ -148,27 +148,36 @@ void main() {
       await tester.pumpAndSettle();
       context = tester.element(find.byType(Scaffold).first);
       expect(MaterialLocalizations.of(context).copyButtonLabel, 'Copy');
-      expect(find.text('New chat'), findsOneWidget);
+      expect(find.text('New chat'), findsNWidgets(2));
       await tester.tap(find.byIcon(Icons.menu));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('section-appearance')));
       await tester.pumpAndSettle();
-      final dropdown = find.byKey(const ValueKey('language-en'));
+      final dropdown = find.byKey(const ValueKey('language-setting'));
       await tester.ensureVisible(dropdown);
       await tester.pumpAndSettle();
       await tester.tap(dropdown);
       await tester.pumpAndSettle();
       expect(find.text('简体中文'), findsOneWidget);
       expect(find.text('繁體中文'), findsOneWidget);
-      await tester.tap(find.text('繁體中文'));
+      await tester.tap(find.byKey(const ValueKey('language-option-zh_TW')));
       await tester.pumpAndSettle();
       expect(settings.settings.language, 'zh_TW');
       expect(find.byType(SettingsPage), findsOneWidget);
       expect(find.text('設定'), findsOneWidget);
       context = tester.element(find.byType(SettingsPage));
       expect(MaterialLocalizations.of(context).copyButtonLabel, '複製');
+      for (final code in ['en', 'zh_CN', 'zh_TW']) {
+        await tester.ensureVisible(dropdown);
+        await tester.tap(dropdown);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey('language-option-$code')));
+        await tester.pumpAndSettle();
+        expect(settings.settings.language, code);
+        expect(find.byType(BottomSheet), findsNothing);
+      }
       expect(tester.takeException(), isNull);
     },
   );

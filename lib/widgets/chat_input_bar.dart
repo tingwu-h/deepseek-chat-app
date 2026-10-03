@@ -19,6 +19,7 @@ class ChatInputBar extends StatefulWidget {
     required this.isLoading,
     required this.enabled,
     this.attachments = const <ChatAttachment>[],
+    this.modelSelector,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -41,6 +42,7 @@ class ChatInputBar extends StatefulWidget {
 
   /// 当前已选、还没发出去的附件
   final List<ChatAttachment> attachments;
+  final Widget? modelSelector;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -91,52 +93,70 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
     return SafeArea(
       top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.6),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (widget.attachments.isNotEmpty) _buildAttachmentStrip(),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            key: const ValueKey('message-composer'),
+            margin: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 14, 10, 6),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                _buildAddButton(),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    minLines: 1,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.newline,
-                    keyboardType: TextInputType.multiline,
-                    textCapitalization: TextCapitalization.sentences,
-                    enabled: !widget.isLoading,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    decoration: InputDecoration(
-                      hintText: widget.enabled
-                          ? (widget.isLoading
-                                ? tr(context, '正在回复…')
-                                : tr(context, '给万象发消息…'))
-                          : tr(context, '请先在设置里填写 API Key'),
-                      isDense: true,
+                if (widget.attachments.isNotEmpty) _buildAttachmentStrip(),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    _buildAddButton(),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        minLines: 1,
+                        maxLines:
+                            MediaQuery.sizeOf(context).height -
+                                    MediaQuery.viewInsetsOf(context).bottom <
+                                400
+                            ? 2
+                            : 5,
+                        textInputAction: TextInputAction.newline,
+                        keyboardType: TextInputType.multiline,
+                        textCapitalization: TextCapitalization.sentences,
+                        enabled: !widget.isLoading,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        decoration: InputDecoration(
+                          hintText: widget.enabled
+                              ? (widget.isLoading
+                                    ? tr(context, '正在回复…')
+                                    : tr(context, '给万象发消息…'))
+                              : tr(context, '请先在设置里填写 API Key'),
+                          isDense: true,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    _buildActionButton(),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                _buildActionButton(),
+                if (widget.modelSelector != null) ...[
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: widget.modelSelector,
+                  ),
+                ],
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

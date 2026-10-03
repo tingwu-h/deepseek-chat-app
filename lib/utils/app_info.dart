@@ -7,9 +7,9 @@
 /// 注入的值在 AOT 产物里取不到（实测），装到手机上会显示成兜底文案。
 /// 直接写成源码里的 const 是编译期字面量，最可靠。
 ///
-/// 下面这个默认值必须与 pubspec.yaml 的 version 保持一致
-/// （test/unit_test.dart 里有测试守着，改 pubspec 忘改这里会测试失败）。
-const String kAppVersion = '1.2.2';
+/// 这个值是对外显示的 Android 热修复版本；Dart pubspec 保留三段基础版本，
+/// 构建脚本和 Android Gradle 配置会将完整热修复版本写入 APK。
+const String kAppVersion = '1.2.2.1';
 
 /// 创作者（显示在「关于」页）
 ///

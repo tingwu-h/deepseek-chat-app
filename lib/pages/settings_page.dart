@@ -11,6 +11,7 @@ import 'package:deepseek_chat/pages/about_page.dart';
 import 'package:deepseek_chat/utils/app_info.dart';
 import 'package:deepseek_chat/widgets/model_tags.dart';
 import 'package:deepseek_chat/widgets/appearance_settings.dart';
+import 'package:deepseek_chat/widgets/provider_tags.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
@@ -526,13 +527,50 @@ class _SettingsPageState extends State<SettingsPage> {
                     initialValue: _draft.providerId,
                     isExpanded: true,
                     decoration: InputDecoration(labelText: tr(context, '服务商')),
+                    selectedItemBuilder: (_) => [
+                      for (final p in providerCatalog)
+                        Text(p.name, overflow: TextOverflow.ellipsis),
+                    ],
                     items: [
                       for (final p in providerCatalog)
-                        DropdownMenuItem(value: p.id, child: Text(p.name)),
+                        DropdownMenuItem(
+                          value: p.id,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(p.name, overflow: TextOverflow.ellipsis),
+                                Text(
+                                  providerTags(p.id)
+                                      .map((tag) => tr(context, tag))
+                                      .join(' · '),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
+                    itemHeight: null,
                     onChanged: (id) {
                       if (id != null) _switchProvider(id);
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  ProviderTags(providerId: _draft.providerId),
+                  const SizedBox(height: 6),
+                  Text(
+                    localized(
+                      context,
+                      '服务商参考方向，具体能力以所选模型为准',
+                      '服務商參考方向，具體能力以所選模型為準',
+                      'Provider guidance; capabilities depend on the selected model',
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -859,6 +897,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     tr(context, '主题立即生效'),
                     style: const TextStyle(fontSize: 12),
                   ),
+                  const SizedBox(height: 16),
                   AppearanceSettings(
                     onSaved: (settings) {
                       if (!mounted) return;

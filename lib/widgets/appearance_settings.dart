@@ -17,6 +17,61 @@ class AppearanceSettings extends StatefulWidget {
 
 class _AppearanceSettingsState extends State<AppearanceSettings> {
   bool _busy = false;
+  bool _choosingLanguage = false;
+  static const _languages = {'zh_CN': '简体中文', 'zh_TW': '繁體中文', 'en': 'English'};
+
+  Future<void> _chooseLanguage() async {
+    if (_busy || _choosingLanguage) return;
+    _choosingLanguage = true;
+    FocusScope.of(context).unfocus();
+    final current = context.read<AppSettingsProvider>().settings.language;
+    final route = ModalBottomSheetRoute<String>(
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: Text(
+                    t('语言', '語言', 'Language'),
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
+                ),
+                for (final entry in _languages.entries)
+                  ListTile(
+                    key: ValueKey('language-option-${entry.key}'),
+                    selected: current == entry.key,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    title: Text(entry.value),
+                    trailing: current == entry.key
+                        ? const Icon(Icons.check_rounded)
+                        : null,
+                    onTap: () => Navigator.pop(ctx, entry.key),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    try {
+      final selected = await Navigator.of(context).push(route);
+      // Finish dismissal before changing the locale and rebuilding the page.
+      await route.completed;
+      if (mounted && selected != null && selected != current) {
+        await _save(language: selected);
+      }
+    } finally {
+      _choosingLanguage = false;
+    }
+  }
+
   String t(String cn, String tw, String en) {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'en'
@@ -149,19 +204,16 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Divider(),
-          DropdownButtonFormField<String>(
-            key: ValueKey('language-${settings.language}'),
-            initialValue: settings.language,
-            decoration: InputDecoration(labelText: t('语言', '語言', 'Language')),
-            items: const [
-              DropdownMenuItem(value: 'zh_CN', child: Text('简体中文')),
-              DropdownMenuItem(value: 'zh_TW', child: Text('繁體中文')),
-              DropdownMenuItem(value: 'en', child: Text('English')),
-            ],
-            onChanged: (value) {
-              if (value != null) _save(language: value);
-            },
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+          ListTile(
+            key: const ValueKey('language-setting'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.language),
+            title: Text(t('语言', '語言', 'Language')),
+            subtitle: Text(_languages[settings.language] ?? '简体中文'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _busy ? null : _chooseLanguage,
           ),
           const SizedBox(height: 16),
           Text(t('聊天背景颜色', '聊天背景顏色', 'Chat background color')),

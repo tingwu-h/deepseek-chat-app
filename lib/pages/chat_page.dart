@@ -1,5 +1,4 @@
 import 'package:deepseek_chat/models/model_info.dart';
-import 'package:deepseek_chat/models/provider_catalog.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -21,7 +20,7 @@ import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
-/// 主页面：抽屉(历史会话) + 单行顶栏(模型/更多) + 气泡列表 + 输入栏。
+/// 主页面：会话标题与操作、消息列表、输入框及当前服务商模型选择。
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
@@ -307,7 +306,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ),
           toolbarHeight: 56,
           titleSpacing: 0,
-          title: _buildModelSelector(settings, chat),
+          title: Tooltip(
+            message: chat.activeTitle,
+            child: Text(
+              chat.activeTitle == '新对话' ? tr(context, '新对话') : chat.activeTitle,
+              key: const ValueKey('conversation-title'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           actions: <Widget>[
             PopupMenuButton<String>(
               tooltip: tr(context, '对话操作'),
@@ -372,6 +379,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
             ),
             ChatInputBar(
+              modelSelector: _buildModelSelector(settings, chat),
               isLoading: chat.isLoading,
               enabled: settings.hasApiKey,
               attachments: _pending,
@@ -387,21 +395,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
   }
 
-  /// 顶栏上的模型切换按钮
+  /// 输入框下方只展示当前服务商的模型。
   Widget _buildModelSelector(AppSettingsProvider provider, ChatProvider chat) {
     final String current = provider.model;
+    // Saved custom models belong to the selected provider's profile.
+    final models = provider.settings.modelChoices;
     return PopupMenuButton<String>(
+      key: const ValueKey('chat-model-selector'),
       enabled: !chat.isLoading,
       tooltip: tr(context, '切换模型'),
       initialValue: current,
       onSelected: (String value) async {
         try {
-          if (value.startsWith('provider:')) {
-            await provider.selectProvider(value.substring(9));
-          } else {
-            if (value == current) return;
-            await provider.update(model: value);
-          }
+          if (value == current) return;
+          await provider.update(model: value);
           await chat.bindModel(provider.settings);
         } catch (_) {
           if (mounted) _showSnack(tr(context, '配置未能保存，请重试'));
@@ -411,9 +418,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         _showSnack(tr(context, '已切换到 {model}', {'model': provider.model}));
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        for (final String m in provider.settings.modelChoices.where(
-          (m) => m.isNotEmpty,
-        ))
+        for (final String m in models.where((m) => m.isNotEmpty))
           PopupMenuItem<String>(
             value: m,
             child: ListTile(
@@ -429,38 +434,42 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     : null,
               ),
               title: Text(AppSettings.modelLabel(m)),
-              subtitle: Text(modelTagSummary(provider.settings.providerId, m)),
+              subtitle: Text(
+                modelInfo(
+                  provider.settings.providerId,
+                  m,
+                ).tags.map((tag) => tr(context, tag)).join(' · '),
+              ),
             ),
           ),
-        for (final p in providerCatalog)
-          PopupMenuItem(value: 'provider:${p.id}', child: Text(p.name)),
-        const PopupMenuDivider(),
       ],
       child: Semantics(
         button: true,
         label: tr(context, '当前模型：{model}', {
           'model': '${provider.settings.preset.name}, $current',
         }),
-        child: SizedBox(
-          height: 48,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48, maxWidth: 240),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
                 child: Text(
                   '${provider.settings.preset.name.split(' · ').first} · ${AppSettings.modelShortName(current)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: chat.isLoading
                         ? Theme.of(context).disabledColor
-                        : null,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
               const SizedBox(width: 4),
               Icon(
                 Icons.expand_more,
-                size: 20,
+                size: 16,
                 color: chat.isLoading ? Theme.of(context).disabledColor : null,
               ),
             ],

@@ -7,6 +7,7 @@ import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
+import 'package:deepseek_chat/widgets/provider_tags.dart';
 
 void main() {
   testWidgets(
@@ -29,8 +30,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('provider-deepseek')));
       await tester.pumpAndSettle();
+      expect(find.text('复杂推理 · 数学 · 编程'), findsOneWidget);
+      expect(find.text('日常问答 · 编程 · 图片理解'), findsOneWidget);
       await tester.tap(find.text('OpenAI · GPT').last);
       await tester.pumpAndSettle();
+      expect(
+        tester.widget<ProviderTags>(find.byType(ProviderTags)).providerId,
+        'openai',
+      );
       final field = find.widgetWithText(TextField, 'OpenAI · GPT API Key');
       expect(tester.widget<TextField>(field).controller!.text, isEmpty);
       await tester.enterText(field, 'openai-fixture');

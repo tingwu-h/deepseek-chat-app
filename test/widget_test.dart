@@ -96,7 +96,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 模型选择在顶栏；新对话提示只保留在空态。
-    expect(find.text('新对话'), findsOneWidget);
+    expect(find.text('新对话'), findsNWidgets(2));
     expect(find.text('给万象发消息…'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
     // 空态不再重复教「怎么发消息」（输入框已有提示）
@@ -173,7 +173,7 @@ void main() {
     expect(h.chat.conversations.length, greaterThanOrEqualTo(2));
   });
 
-  testWidgets('聊天页顶栏可以直接切换模型（回归：曾只能在设置页底部改）', (WidgetTester tester) async {
+  testWidgets('输入框下方可以切换当前服务商的模型', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -186,6 +186,8 @@ void main() {
     await tester.tap(find.text('DeepSeek · flash'));
     await tester.pumpAndSettle();
     expect(find.text('deepseek-v4-pro（强，复杂推理）'), findsOneWidget);
+    expect(find.text('OpenAI · GPT'), findsNothing);
+    expect(find.text('Anthropic · Claude'), findsNothing);
 
     await tester.tap(find.text('deepseek-v4-pro（强，复杂推理）'));
     await tester.pumpAndSettle();
@@ -315,9 +317,70 @@ void main() {
       expect(bar.preferredSize.height, 56);
       expect(tester.getSize(find.byType(AppBar)).height, 56);
       expect(find.byIcon(Icons.add_comment_outlined), findsNothing);
+      final selector = find.byKey(const ValueKey('chat-model-selector'));
+      expect(
+        tester.getTopLeft(selector).dy,
+        greaterThanOrEqualTo(tester.getBottomLeft(find.byType(TextField)).dy),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('message-composer')),
+          matching: selector,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getBottomLeft(selector).dy,
+        lessThan(
+          tester
+              .getBottomLeft(find.byKey(const ValueKey('message-composer')))
+              .dy,
+        ),
+      );
+      expect(tester.widget<TextField>(find.byType(TextField)).minLines, 1);
+      expect(tester.getSize(selector).width, lessThanOrEqualTo(240));
       await tester.tap(find.byTooltip('切换模型'));
       await tester.pumpAndSettle();
       expect(find.text('a-very-long-custom-model-name'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'header follows conversation rename and selection with keyboard open',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 270);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      final h = await _buildHarness();
+      await h.chat.newConversation();
+      final id = h.chat.activeConversationId!;
+      await h.chat.renameConversation(id, '我的长会话名称测试：旅行计划与每日安排');
+      await tester.pumpWidget(h.app);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('conversation-title')))
+            .data,
+        '我的长会话名称测试：旅行计划与每日安排',
+      );
+      await h.chat.renameConversation(id, '新名称');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('conversation-title')))
+            .data,
+        '新名称',
+      );
+      expect(
+        tester
+            .getBottomLeft(find.byKey(const ValueKey('chat-model-selector')))
+            .dy,
+        lessThanOrEqualTo(370),
+      );
       expect(tester.takeException(), isNull);
     },
   );

@@ -7,18 +7,18 @@
   <p><strong>汇聚多种 AI，让每一次对话都有更多可能。</strong></p>
   <p>源码公开的 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.2/wanxiang-v1.2.2.apk">下载 APK</a> ·
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.2"><img src="https://img.shields.io/badge/version-v1.2.2-1677FF" alt="版本 v1.2.2"></a>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.2.1/wanxiang-v1.2.2.1.apk">下载 APK</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.2.1"><img src="https://img.shields.io/badge/version-v1.2.2.1-1677FF" alt="版本 v1.2.2.1"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 及以上">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="使用 Flutter 构建">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="禁止商业使用"></a>
   </p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.2">v1.2.2 发布页</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.2.1">v1.2.2.1 发布页</a> ·
     <a href="#preview">界面预览</a> ·
     <a href="#quick-start">开始使用</a> ·
     <a href="#providers">服务商</a> ·
-    <a href="docs/1.2.2-更新说明.md">更新说明</a>
+    <a href="docs/1.2.2.1-更新说明.md">更新说明</a>
   </p>
 </div>
 
@@ -82,20 +82,20 @@
 
 ## 开始第一段对话
 
-1. 前往 [v1.2.2 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.2)查看版本说明与可用附件，也可以按下文从源码构建 APK。
+1. 前往 [v1.2.2.1 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.2.1)查看版本说明与可用附件，也可以按下文从源码构建 APK。
 2. 打开**设置 → 模型与服务**，选择服务商并填写自己的 API Key；点击**获取 API Key**可直达官方平台。
 3. 选择模型，或填写账号当前可用的自定义模型 ID；需要时调整 Base URL。
 4. 保存配置，可使用**测试连接**检查接口，然后回到聊天页开始对话。
-5. 在聊天页顶部切换服务商和模型。发送图片前，请确认所选模型具备视觉能力。
+5. 在输入框下方切换当前服务商的模型；更换服务商请进入设置 → 模型与服务。发送图片前，请确认所选模型具备视觉能力。
 
 测试连接和聊天均会发出真实 API 请求，可能产生用量费用。API 资格、区域限制及计费由服务商管理；万象与这些服务商没有隶属关系。
 
 <details>
 <summary><strong>从 DeepSeek 助手升级到万象</strong></summary>
 
-v1.2.2 的构建号为 **13**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
+v1.2.2.1 的构建号为 **14**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
 
-内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.2.2 更新说明](docs/1.2.2-更新说明.md)。
+内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.2.2.1 更新说明](docs/1.2.2.1-更新说明.md)。
 
 </details>
 
@@ -107,9 +107,13 @@ v1.2.2 的构建号为 **13**。为延续已有安装与数据，Android 包名�
 
 [免费模型与获取渠道](docs/免费模型与获取渠道.md)
 
+## 更顺手的聊天布局
+
+顶部显示当前会话名称，底部外层圆角窗口加高，文字输入框保持原来的起始高度。模型选择缩小后放在同一窗口内、文字输入区下方，仅显示当前服务商的模型。服务商新增编程、推理、写作、长文、图片理解等参考标签；语言选择采用与设置风格一致的底部面板。
+
 ## 外观与图片工具
 
-v1.2.2 新增简体中文、繁體中文和 English 界面切换。聊天背景可以选择颜色或上传图片；图片支持裁剪、缩放、放大输出，并在保存前自动压缩到 5 MB 以内。
+v1.2.2.1 新增简体中文、繁體中文和 English 界面切换。聊天背景可以选择颜色或上传图片；图片支持裁剪、缩放、放大输出，并在保存前自动压缩到 5 MB 以内。
 
 ## 你的密钥，你的数据
 
