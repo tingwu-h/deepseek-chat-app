@@ -7,18 +7,18 @@
   <p><strong>汇聚多种 AI，让每一次对话都有更多可能。</strong></p>
   <p>源码公开的 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.0/wanxiang-v1.2.0.apk">下载 APK</a> ·
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/version-v1.2.0-1677FF" alt="版本 v1.2.0"></a>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.1/wanxiang-v1.2.1.apk">下载 APK</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.1"><img src="https://img.shields.io/badge/version-v1.2.1-1677FF" alt="版本 v1.2.1"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 及以上">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="使用 Flutter 构建">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="禁止商业使用"></a>
   </p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0">v1.2.0 发布页</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.1">v1.2.1 发布页</a> ·
     <a href="#preview">界面预览</a> ·
     <a href="#quick-start">开始使用</a> ·
     <a href="#providers">服务商</a> ·
-    <a href="docs/1.2.0-更新说明.md">更新说明</a>
+    <a href="docs/1.2.1-更新说明.md">更新说明</a>
   </p>
 </div>
 
@@ -34,7 +34,7 @@
 
 ## 核心特点
 
-- **自由选择模型**：八家预置服务商与自定义接口，按需选择账号可用的模型。
+- **自由选择模型**：九家预置服务商与自定义接口，按需选择账号可用的模型。
 - **让对话自然延续**：流式回复、多会话历史，重新打开会话时恢复对应服务商和模型。
 - **不止输入文字**：发送图片与纯文本附件，让支持相应能力的模型理解更多上下文。
 - **适合长时间阅读**：Markdown 排版，搭配浅色与深色界面。
@@ -73,6 +73,7 @@
 | Google · Gemini | Google Gemini | Gemini API Key 与账号可用模型 |
 | xAI · Grok | OpenAI 兼容 Chat Completions | xAI API Key 与账号可用模型 |
 | GLM · 智谱 | OpenAI 兼容 Chat Completions | 智谱 API Key 与账号可用模型 |
+| OpenRouter | OpenAI 兼容 Chat Completions | 自有 API Key；提供免费模型入口 |
 | 自定义 | 可选择上述四类协议 | 填写 Base URL、API Key 和模型 ID |
 
 预置模型仅用于方便配置，不代表你的账号已经获得调用权限。请以服务商当前开放的模型、区域和账号权限为准；可在设置中修改模型 ID、接口地址和图片能力。兼容接口的具体行为可能因服务商而异。
@@ -81,8 +82,8 @@
 
 ## 开始第一段对话
 
-1. 前往 [v1.2.0 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0)查看版本说明与可用附件，也可以按下文从源码构建 APK。
-2. 打开万象的**设置**，选择服务商并填写自己的 API Key。
+1. 前往 [v1.2.1 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.1)查看版本说明与可用附件，也可以按下文从源码构建 APK。
+2. 打开**设置 → 模型与服务**，选择服务商并填写自己的 API Key；点击**获取 API Key**可直达官方平台。
 3. 选择模型，或填写账号当前可用的自定义模型 ID；需要时调整 Base URL。
 4. 保存配置，可使用**测试连接**检查接口，然后回到聊天页开始对话。
 5. 在聊天页顶部切换服务商和模型。发送图片前，请确认所选模型具备视觉能力。
@@ -92,11 +93,19 @@
 <details>
 <summary><strong>从 DeepSeek 助手升级到万象</strong></summary>
 
-v1.2.0 的构建号为 **11**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
+v1.2.1 的构建号为 **12**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
 
-内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.2.0 更新说明](docs/1.2.0-更新说明.md)。
+内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.2.1 更新说明](docs/1.2.1-更新说明.md)。
 
 </details>
+
+## 设置更清楚，选模型更轻松
+
+设置分为**模型与服务、对话设置、外观设置、数据管理、关于万象**五个可展开的分类，接口地址与协议收进高级设置。折叠或切换服务商时保留输入，离开前提醒保存。
+
+模型附带编程、推理、写作、图片理解等参考标签。点击**选择免费模型**，可选 OpenRouter 免费自动选模、Qwen 免费变体或 Gemini Flash-Lite 免费额度，并直接打开官方 Key 申请页与额度说明。均需自己的 Key，额度、地区和数据政策以平台为准，不自动切换到付费模型。
+
+[免费模型与获取渠道](docs/免费模型与获取渠道.md)
 
 ## 你的密钥，你的数据
 

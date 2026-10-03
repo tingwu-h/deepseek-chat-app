@@ -50,8 +50,8 @@ const providerCatalog = <ProviderPreset>[
     'google',
     'Google · Gemini',
     'https://generativelanguage.googleapis.com/v1beta',
-    ['gemini-2.5-flash', 'gemini-2.5-pro'],
-    'https://aistudio.google.com',
+    ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
+    'https://aistudio.google.com/apikey',
     protocol: 'gemini',
   ),
   ProviderPreset('xai', 'xAI · Grok', 'https://api.x.ai/v1', [
@@ -62,6 +62,10 @@ const providerCatalog = <ProviderPreset>[
     'glm-4.7',
     'glm-4.6v',
   ], 'https://open.bigmodel.cn'),
+  ProviderPreset('openrouter', 'OpenRouter', 'https://openrouter.ai/api/v1', [
+    'openrouter/free',
+    'qwen/qwen3.8-27b:free',
+  ], 'https://openrouter.ai/settings/keys'),
   ProviderPreset('custom', '自定义服务商', '', [], ''),
 ];
 
@@ -71,6 +75,8 @@ ProviderPreset presetFor(String id) => providerCatalog.firstWhere(
 );
 
 bool modelSupportsImages(String model) => [
+  'openrouter/free',
+  'qwen/qwen3.8-27b:free',
   'deepseek-flash',
   'deepseek-v4-flash',
   'deepseek-v4-flash-vision-exp',
@@ -82,5 +88,6 @@ bool modelSupportsImages(String model) => [
   'claude-haiku-4-5',
   'gemini-2.5-flash',
   'gemini-2.5-pro',
+  'gemini-2.5-flash-lite',
   'glm-4.6v',
 ].contains(model);

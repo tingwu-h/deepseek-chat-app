@@ -414,6 +414,18 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
     await screenshot('settings');
+    await tester.tap(find.byKey(const ValueKey('section-model')));
+    await tester.pumpAndSettle();
+    await screenshot('settings-model');
+    await tester.tap(find.byKey(const ValueKey('section-model')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('section-appearance')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('深色'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('section-appearance')));
+    await tester.pumpAndSettle();
+    await screenshot('settings-dark');
     await tester.pumpWidget(const SizedBox());
     chat.dispose();
   });

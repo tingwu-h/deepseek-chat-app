@@ -1,3 +1,4 @@
+import 'package:deepseek_chat/models/model_info.dart';
 import 'package:deepseek_chat/models/provider_catalog.dart';
 
 import 'dart:async';
@@ -413,6 +414,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     : null,
               ),
               title: Text(AppSettings.modelLabel(m)),
+              subtitle: Text(modelTagSummary(provider.settings.providerId, m)),
             ),
           ),
         for (final p in providerCatalog)

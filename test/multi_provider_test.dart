@@ -230,7 +230,7 @@ void main() {
     );
   }
 
-  for (final id in ['kimi', 'qwen', 'xai', 'glm', 'deepseek']) {
+  for (final id in ['kimi', 'qwen', 'xai', 'glm', 'deepseek', 'openrouter']) {
     test('$id uses isolated OpenAI-compatible configuration', () async {
       final s = AppSettings().forProvider(id).copyWith(apiKey: '$id-key');
       final api = DeepSeekService(

@@ -79,8 +79,14 @@ class AboutPage extends StatelessWidget {
                 _LinkTile(
                   icon: Icons.code,
                   title: '项目源码',
-                  subtitle: 'GitHub 仓库（MIT 许可）',
+                  subtitle: '源码公开，禁止商用',
                   url: _repoUrl,
+                ),
+                _LinkTile(
+                  icon: Icons.description_outlined,
+                  title: '使用许可',
+                  subtitle: '万象非商业使用许可证',
+                  url: '$_repoUrl/blob/main/LICENSE',
                 ),
               ],
             ),
@@ -92,7 +98,7 @@ class AboutPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              '本应用是个人开源作品，与各模型服务商无隶属关系。\n'
+              '本应用是个人作品，与各模型服务商无隶属关系。\n'
               'API Key 在本机加密保存；请求时，密钥和聊天内容发送到你为当前服务商设置的接口。',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(

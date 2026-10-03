@@ -228,6 +228,8 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const ValueKey('section-model')));
+    await tester.pumpAndSettle();
     expect(find.text('DeepSeek API Key'), findsOneWidget);
     // 之前保存的测试 Key 应该回填到输入框
     expect(find.text('sk-test-key'), findsOneWidget);
@@ -260,6 +262,8 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const ValueKey('section-appearance')));
+    await tester.pumpAndSettle();
     // 选择「深色」——不加任何保存操作。
     //
     // 这里刻意不用 find.ancestor(of: find.text('深色'), ...)：

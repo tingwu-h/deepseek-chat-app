@@ -25,6 +25,8 @@ void main() {
       final context = tester.element(find.byType(Scaffold).first);
       Navigator.of(context).pushNamed(SettingsPage.routeName);
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('section-model')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('provider-deepseek')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('OpenAI · GPT').last);
