@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
@@ -17,7 +19,7 @@ void main() {
 
     // 第一次：写入两条消息
     final ChatProvider first = ChatProvider(
-      api: DeepSeekService(),
+      api: _offlineApi(),
       storage: storage,
     );
     await first.init();
@@ -28,15 +30,16 @@ void main() {
 
     // 第二次：全新 Provider，应该还能看到
     final ChatProvider second = ChatProvider(
-      api: DeepSeekService(),
+      api: _offlineApi(),
       storage: storage,
     );
     await second.init();
-    expect(second.messages.isNotEmpty, isTrue,
-        reason: '重开后历史不见了，说明没有正确落盘或读取');
+    expect(second.messages.isNotEmpty, isTrue, reason: '重开后历史不见了，说明没有正确落盘或读取');
     expect(second.messages.first.content, '你好');
-    expect(second.conversations.where((c) => !c.isEmpty).length,
-        greaterThanOrEqualTo(1));
+    expect(
+      second.conversations.where((c) => !c.isEmpty).length,
+      greaterThanOrEqualTo(1),
+    );
   });
 
   test('旧版本的单份历史（ds_chat_history）能被迁移过来', () async {
@@ -51,13 +54,12 @@ void main() {
 
     final StorageService storage = StorageService();
     final ChatProvider provider = ChatProvider(
-      api: DeepSeekService(),
+      api: _offlineApi(),
       storage: storage,
     );
     await provider.init();
 
-    expect(provider.messages.length, 2,
-        reason: '旧数据没有迁移过来 —— 升级后用户会以为历史丢了');
+    expect(provider.messages.length, 2, reason: '旧数据没有迁移过来 —— 升级后用户会以为历史丢了');
     expect(provider.messages.first.content, '旧版本的提问');
 
     // 迁移后旧 key 应被清掉，且新结构里确实有数据
@@ -70,7 +72,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final StorageService storage = StorageService();
     final ChatProvider provider = ChatProvider(
-      api: DeepSeekService(),
+      api: _offlineApi(),
       storage: storage,
     );
     await provider.init();
@@ -88,12 +90,11 @@ void main() {
 
     // 切回 A
     await provider.switchConversation(idA!);
-    expect(provider.messages.length, countA,
-        reason: '切回旧会话后内容丢失');
+    expect(provider.messages.length, countA, reason: '切回旧会话后内容丢失');
 
     // 再整体重载一次，两个会话都应在
     final ChatProvider reloaded = ChatProvider(
-      api: DeepSeekService(),
+      api: _offlineApi(),
       storage: storage,
     );
     await reloaded.init();
@@ -103,10 +104,7 @@ void main() {
   test('重命名会话会落盘，重载后名字还在', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final StorageService storage = StorageService();
-    final ChatProvider p = ChatProvider(
-      api: DeepSeekService(),
-      storage: storage,
-    );
+    final ChatProvider p = ChatProvider(api: _offlineApi(), storage: storage);
     await p.init();
     await p.send('原始内容', _fakeSettings());
     final String id = p.activeConversationId!;
@@ -119,7 +117,7 @@ void main() {
 
     // 重载后仍是自定义名字
     final ChatProvider reloaded = ChatProvider(
-      api: DeepSeekService(),
+      api: _offlineApi(),
       storage: storage,
     );
     await reloaded.init();
@@ -129,8 +127,7 @@ void main() {
 
     // 传空串应恢复自动标题
     await reloaded.renameConversation(id, '   ');
-    expect(reloaded.conversations.firstWhere((c) => c.id == id).title,
-        '原始内容');
+    expect(reloaded.conversations.firstWhere((c) => c.id == id).title, '原始内容');
   });
 
   test('存储里缺索引 key 但内容还在时，不应当静默丢光（当前行为的记录）', () async {
@@ -141,9 +138,7 @@ void main() {
         'id': 'orphan',
         'createdAt': DateTime.now().millisecondsSinceEpoch,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
-        'messages': <dynamic>[
-          ChatMessage.user('孤儿会话的消息').toJson(),
-        ],
+        'messages': <dynamic>[ChatMessage.user('孤儿会话的消息').toJson()],
       }),
       // 故意不写 ds_conversations
     };
@@ -152,10 +147,14 @@ void main() {
     final StorageService storage = StorageService();
     final List<dynamic> loaded = await storage.loadConversations();
     // 现状：读不到（这就是脆弱点）
-    expect(loaded, isEmpty,
-        reason: '如果这里变成非空，说明已经改成能兜底扫描 ds_conv_* 了');
+    expect(loaded, hasLength(1), reason: '索引丢失时应恢复仍在磁盘的会话');
   });
 }
 
 /// 一份假的设置：Key 无效，send 会走失败分支，但「用户消息已写入并落盘」这件事仍会验证到
 AppSettings _fakeSettings() => AppSettings(apiKey: 'sk-invalid-for-test');
+DeepSeekService _offlineApi() => DeepSeekService(
+  client: MockClient(
+    (_) async => http.Response('{"error":{"message":"offline fixture"}}', 401),
+  ),
+);

@@ -15,22 +15,25 @@ void main() {
     // 守住「改了 pubspec 忘记改 kAppVersion」这种低级错误。
     // 这个值会显示在设置页底部，之前就翻过车（显示成「开发版」）。
     final File pubspec = File('pubspec.yaml');
-    expect(pubspec.existsSync(), isTrue,
-        reason: '测试的工作目录应该是项目根目录');
+    expect(pubspec.existsSync(), isTrue, reason: '测试的工作目录应该是项目根目录');
 
     String? version;
     for (final String line in pubspec.readAsLinesSync()) {
-      final RegExpMatch? m =
-          RegExp(r'^version:\s*([0-9]+\.[0-9]+\.[0-9]+)').firstMatch(line);
+      final RegExpMatch? m = RegExp(r'^version:\s*([0-9]+\.[0-9]+\.[0-9]+)')
+          .firstMatch(line);
       if (m != null) {
         version = m.group(1);
         break;
       }
     }
     expect(version, isNotNull, reason: 'pubspec.yaml 里没找到 version');
-    expect(kAppVersion, version,
-        reason: 'lib/utils/app_info.dart 的 kAppVersion 与 pubspec 不一致，'
-            '设置页会显示错误版本号');
+    expect(
+      kAppVersion,
+      version,
+      reason:
+          'lib/utils/app_info.dart 的 kAppVersion 与 pubspec 不一致，'
+          '设置页会显示错误版本号',
+    );
   });
 
   group('AppSettings', () {
@@ -71,14 +74,11 @@ void main() {
       final List<ChatMessage> list = <ChatMessage>[
         ChatMessage.user('你好'),
         ChatMessage.assistant('你好！有什么可以帮你？'),
-        ChatMessage(
-          role: MessageRole.assistant,
-          content: '出错了',
-          error: true,
-        ),
+        ChatMessage(role: MessageRole.assistant, content: '出错了', error: true),
       ];
-      final List<ChatMessage> back =
-          ChatMessage.listFromJsonString(ChatMessage.listToJsonString(list));
+      final List<ChatMessage> back = ChatMessage.listFromJsonString(
+        ChatMessage.listToJsonString(list),
+      );
       expect(back.length, 3);
       expect(back[0].isUser, isTrue);
       expect(back[1].isAssistant, isTrue);
@@ -99,11 +99,7 @@ void main() {
       final List<Map<String, dynamic>> api = await service.buildApiMessages(
         <ChatMessage>[
           ChatMessage.user('你好'),
-          ChatMessage(
-            role: MessageRole.assistant,
-            content: '哎呀',
-            error: true,
-          ),
+          ChatMessage(role: MessageRole.assistant, content: '哎呀', error: true),
           ChatMessage.assistant('   '),
           ChatMessage.assistant('正常回复'),
         ],

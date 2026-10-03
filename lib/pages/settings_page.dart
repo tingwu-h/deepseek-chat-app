@@ -7,6 +7,7 @@ import 'package:deepseek_chat/pages/about_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
+import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/utils/link_actions.dart';
 
 /// 设置页：API Key（用户自己填，绝不硬编码）、模型、主题、系统提示词。
@@ -37,6 +38,61 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _obscureKey = true;
   bool _testing = false;
+  bool _exporting = false;
+
+  Future<bool> _confirmDestination(AppSettings next) async {
+    Uri destination;
+    try {
+      destination = DeepSeekService.endpoint(next.baseUrl);
+    } on DeepSeekException catch (e) {
+      _toast(e.message, isError: true);
+      return false;
+    } catch (_) {
+      _toast('接口地址格式不正确，请检查后再试。', isError: true);
+      return false;
+    }
+    final previous = context.read<AppSettingsProvider>().settings;
+    Uri? old;
+    try {
+      old = DeepSeekService.endpoint(previous.baseUrl);
+    } catch (_) {}
+    if (destination.origin != old?.origin && next.hasApiKey) {
+      return await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('确认接口接收方'),
+              content: Text(
+                '密钥和聊天内容将发送到 ${destination.origin}。\n\n如果这是其他服务商，请确认填写的是该服务商的密钥。',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('返回检查'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('确认使用'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+    }
+    return true;
+  }
+
+  Future<void> _exportHistory() async {
+    setState(() => _exporting = true);
+    try {
+      final json = await context.read<ChatProvider>().exportHistory();
+      final saved = await PlatformService.exportHistory(json);
+      if (mounted) _toast(saved ? '聊天文字已导出，图片文件不包含在内。' : '已取消导出');
+    } catch (_) {
+      if (mounted) _toast('导出失败，请重新选择保存位置。', isError: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
 
   @override
   void initState() {
@@ -64,12 +120,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   AppSettings _collect() {
-    final AppSettingsProvider provider =
-        context.read<AppSettingsProvider>();
+    final AppSettingsProvider provider = context.read<AppSettingsProvider>();
     // 自定义模型名优先：用户既然填了，就用他填的
     final String custom = _customController.text.trim();
-    final String model =
-        custom.isNotEmpty && _isCustomModel ? custom : _model;
+    final String model = custom.isNotEmpty && _isCustomModel ? custom : _model;
     return provider.settings.copyWith(
       apiKey: _keyController.text.trim(),
       baseUrl: _baseUrlController.text.trim().isEmpty
@@ -83,17 +137,22 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _save({bool pop = true}) async {
-    final AppSettingsProvider provider =
-        context.read<AppSettingsProvider>();
+    final AppSettingsProvider provider = context.read<AppSettingsProvider>();
     final AppSettings next = _collect();
-    await provider.update(
-      apiKey: next.apiKey,
-      baseUrl: next.baseUrl,
-      model: next.model,
-      systemPrompt: next.systemPrompt,
-      temperature: next.temperature,
-      themeMode: next.themeMode,
-    );
+    if (!await _confirmDestination(next) || !mounted) return;
+    try {
+      await provider.update(
+        apiKey: next.apiKey,
+        baseUrl: next.baseUrl,
+        model: next.model,
+        systemPrompt: next.systemPrompt,
+        temperature: next.temperature,
+        themeMode: next.themeMode,
+      );
+    } catch (_) {
+      if (mounted) _toast('设置暂时未能保存，请重试。', isError: true);
+      return;
+    }
     if (!mounted) return;
     _toast('设置已保存');
     if (pop) Navigator.of(context).pop();
@@ -105,6 +164,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _toast('请先填写 API Key');
       return;
     }
+    if (!await _confirmDestination(candidate) || !mounted) return;
 
     setState(() => _testing = true);
     FocusScope.of(context).unfocus();
@@ -113,11 +173,11 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       // 先保存，这样测试用的就是当前填写的配置
       await context.read<AppSettingsProvider>().update(
-            apiKey: candidate.apiKey,
-            baseUrl: candidate.baseUrl,
-            model: candidate.model,
-            temperature: candidate.temperature,
-          );
+        apiKey: candidate.apiKey,
+        baseUrl: candidate.baseUrl,
+        model: candidate.model,
+        temperature: candidate.temperature,
+      );
       final String reply = await service.testConnection(candidate);
       if (!mounted) return;
       _toast('连接成功：${_short(reply)}');
@@ -207,16 +267,19 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: _confirmReset,
             icon: const Icon(Icons.restart_alt),
           ),
-          TextButton(
-            onPressed: _save,
-            child: const Text('保存'),
-          ),
+          TextButton(onPressed: _save, child: const Text('保存')),
           const SizedBox(width: 4),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
+          if (context.watch<AppSettingsProvider>().initializationWarning
+              case final String warning)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(warning),
+            ),
           _sectionTitle('API 配置'),
           _card(
             children: <Widget>[
@@ -246,13 +309,13 @@ class _SettingsPageState extends State<SettingsPage> {
                       IconButton(
                         tooltip: '粘贴',
                         onPressed: () async {
-                          final ClipboardData? data =
-                              await Clipboard.getData(Clipboard.kTextPlain);
+                          final ClipboardData? data = await Clipboard.getData(
+                            Clipboard.kTextPlain,
+                          );
                           final String? text = data?.text;
                           if (text == null || text.isEmpty) return;
                           _keyController.text = text.trim();
-                          _keyController.selection =
-                              TextSelection.collapsed(
+                          _keyController.selection = TextSelection.collapsed(
                             offset: _keyController.text.length,
                           );
                         },
@@ -289,7 +352,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Key 只保存在这台手机的本地存储里，不会上传给任何第三方服务器。',
+                'Android 使用系统密钥库加密保存 Key。发送消息时，Key 和对话会交给你设置的接口；请只使用可信服务商。',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -302,6 +365,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _card(
             children: <Widget>[
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 // Flutter 3.32+ 推荐用 initialValue，旧版本仍是 value；
                 // 这里用 value 以同时兼容 3.22 ~ 3.35。
                 // ignore: deprecated_member_use
@@ -316,7 +380,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   for (final String m in AppSettings.availableModels)
                     DropdownMenuItem<String>(
                       value: m,
-                      child: Text(AppSettings.modelLabel(m)),
+                      child: Text(
+                        AppSettings.modelLabel(m),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   const DropdownMenuItem<String>(
                     value: _customModelSentinel,
@@ -339,8 +406,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     } else {
                       _model = value;
                     }
-                    _isCustomModel =
-                        !AppSettings.availableModels.contains(_model);
+                    _isCustomModel = !AppSettings.availableModels.contains(
+                      _model,
+                    );
                     if (_isCustomModel) _customController.text = _model;
                   });
                 },
@@ -360,8 +428,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     if (t.isNotEmpty) {
                       _model = t;
-                      _isCustomModel =
-                          !AppSettings.availableModels.contains(t);
+                      _isCustomModel = !AppSettings.availableModels.contains(t);
                     } else {
                       _isCustomModel = false;
                     }
@@ -381,6 +448,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
               TextField(
                 controller: _baseUrlController,
+                onChanged: (_) => setState(() {}),
                 keyboardType: TextInputType.url,
                 autocorrect: false,
                 decoration: const InputDecoration(
@@ -391,7 +459,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                '最终请求地址：${_baseUrlController.text.trim().isEmpty ? AppSettings.defaultBaseUrl : _baseUrlController.text.trim()}/chat/completions',
+                '接收方：${_baseUrlController.text.trim().isEmpty ? AppSettings.defaultBaseUrl : _baseUrlController.text.trim()}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -442,9 +510,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     // 不需要用户再点一次「保存」——之前必须保存才生效，
                     // 选完直接返回就白选了。
                     setState(() => _themeMode = value);
-                    await context
-                        .read<AppSettingsProvider>()
-                        .update(themeMode: value);
+                    await context.read<AppSettingsProvider>().update(
+                      themeMode: value,
+                    );
                   },
                   contentPadding: EdgeInsets.zero,
                   title: Text(switch (mode) {
@@ -460,10 +528,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               const Padding(
                 padding: EdgeInsets.only(top: 4),
-                child: Text(
-                  '选完立即生效，无需再点保存。',
-                  style: TextStyle(fontSize: 11),
-                ),
+                child: Text('选完立即生效，无需再点保存。', style: TextStyle(fontSize: 11)),
               ),
             ],
           ),
@@ -500,7 +565,36 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 10),
               OutlinedButton.icon(
+                onPressed: _exporting ? null : _exportHistory,
+                icon: const Icon(Icons.file_download_outlined),
+                label: Text(_exporting ? '正在准备导出…' : '导出聊天文字'),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('历史不会自动删除。建议定期导出重要内容；导出不含密钥和图片文件。'),
+              ),
+              OutlinedButton.icon(
                 onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('清空全部对话？'),
+                      content: const Text(
+                        '聊天记录和不再使用的图片将被删除。建议先导出重要内容，此操作无法撤销。',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('取消'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('确认清空'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true) return;
                   await chat.clearAllConversations();
                   if (!mounted) return;
                   _toast('已清空全部对话记录');
@@ -538,23 +632,23 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _card({required List<Widget> children}) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    ),
+  );
 
   Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 8),
-        child: Text(
-          text,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      );
+    padding: const EdgeInsets.only(left: 4, bottom: 8),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }

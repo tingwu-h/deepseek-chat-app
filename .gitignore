@@ -18,6 +18,11 @@ android/key.properties
 
 # Android
 android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+ios/Flutter/ephemeral/
+*.apk
 android/local.properties
 android/key.properties
 *.jks

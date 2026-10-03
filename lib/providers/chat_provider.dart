@@ -11,11 +11,7 @@ import 'package:deepseek_chat/services/storage_service.dart';
 
 /// 对话状态：多会话管理 + 流式接收 + 中断控制 + 本地持久化。
 class ChatProvider extends ChangeNotifier {
-  ChatProvider({
-    required DeepSeekService api,
-    required StorageService storage,
-  })  : _api = api,
-        _storage = storage;
+  ChatProvider({required this._api, required this._storage});
 
   final DeepSeekService _api;
   final StorageService _storage;
@@ -33,6 +29,36 @@ class ChatProvider extends ChangeNotifier {
   /// 每次发送分配一个自增 token，只有 token 匹配的流才允许写入界面。
   /// 这样「停止生成」之后旧流的残余数据不会污染新的一轮对话。
   int _activeToken = 0;
+  StreamSubscription<ChatChunk>? _subscription;
+  Completer<void>? _requestDone;
+  Timer? _checkpoint;
+  bool _disposed = false;
+
+  void _cancelRequest() {
+    _activeToken++;
+    _loading = false;
+    _api.cancel();
+    final subscription = _subscription;
+    _subscription = null;
+    if (subscription != null) unawaited(subscription.cancel());
+    final done = _requestDone;
+    _requestDone = null;
+    if (done != null && !done.isCompleted) done.complete();
+    _checkpoint?.cancel();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _cancelRequest();
+    _api.dispose();
+    _disposed = true;
+    super.dispose();
+  }
 
   // ------------------------------------------------------------ 对外读取
 
@@ -43,8 +69,9 @@ class ChatProvider extends ChangeNotifier {
   /// 会话列表（最近更新在前）
   List<Conversation> get conversations {
     final List<Conversation> copy = List<Conversation>.from(_conversations);
-    copy.sort((Conversation a, Conversation b) =>
-        b.updatedAt.compareTo(a.updatedAt));
+    copy.sort(
+      (Conversation a, Conversation b) => b.updatedAt.compareTo(a.updatedAt),
+    );
     return List<Conversation>.unmodifiable(copy);
   }
 
@@ -57,6 +84,10 @@ class ChatProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isInitialized => _initialized;
   bool get hasMessages => _active?.messages.isNotEmpty ?? false;
+  Future<String> exportHistory() async {
+    if (_active != null) await _persist(_active!);
+    return _storage.exportHistory();
+  }
 
   // ---------------------------------------------------------------- 初始化
 
@@ -84,8 +115,7 @@ class ChatProvider extends ChangeNotifier {
 
   /// 开一个新会话（当前会话本来就是空的就不重复新建）
   Future<void> newConversation() async {
-    _activeToken++; // 中断可能正在跑的流
-    _loading = false;
+    await stopAndPersist();
     _error = null;
 
     if (_active != null && _active!.isEmpty) {
@@ -106,8 +136,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> switchConversation(String id) async {
     final int idx = _conversations.indexWhere((Conversation c) => c.id == id);
     if (idx < 0) return;
-    _activeToken++;
-    _loading = false;
+    await stopAndPersist();
     _error = null;
     _active = _conversations[idx];
     notifyListeners();
@@ -116,6 +145,7 @@ class ChatProvider extends ChangeNotifier {
 
   /// 删除一个会话
   Future<void> deleteConversation(String id) async {
+    if (_active?.id == id) await stopAndPersist();
     _conversations.removeWhere((Conversation c) => c.id == id);
     await _storage.deleteConversation(id);
     if (_active?.id == id) {
@@ -148,8 +178,7 @@ class ChatProvider extends ChangeNotifier {
 
   /// 清空全部会话
   Future<void> clearAllConversations() async {
-    _activeToken++;
-    _loading = false;
+    await stopAndPersist();
     _error = null;
     _conversations.clear();
     await _storage.deleteAllConversations();
@@ -182,17 +211,24 @@ class ChatProvider extends ChangeNotifier {
     final int token = ++_activeToken;
     _error = null;
 
-    conv.messages.add(ChatMessage.user(
-      content,
-      attachments: List<ChatAttachment>.from(attachments),
-    ));
+    conv.messages.add(
+      ChatMessage.user(
+        content,
+        attachments: List<ChatAttachment>.from(attachments),
+      ),
+    );
 
     // 先放一个空气泡，流式内容会一段段追加进去，形成打字机效果
     final ChatMessage assistant = ChatMessage.assistant('');
     conv.messages.add(assistant);
     _loading = true;
     notifyListeners();
-    await _persist();
+    await _persist(conv);
+    if (token != _activeToken) {
+      if (assistant.isBlank) conv.messages.remove(assistant);
+      await _persist(conv);
+      return;
+    }
 
     // 发给 API 的上下文：必须排除刚插入的那条空助手消息
     final List<ChatMessage> context = conv.messages
@@ -214,29 +250,51 @@ class ChatProvider extends ChangeNotifier {
       });
     }
 
+    final done = Completer<void>();
+    _requestDone = done;
+    _checkpoint = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (token == _activeToken) unawaited(_persist(conv));
+    });
     try {
-      await for (final ChatChunk chunk
-          in _api.streamChat(settings: settings, history: context)) {
-        if (token != _activeToken) break; // 用户点了停止 / 切换了会话
-        if (chunk.isEmpty) continue;
-        receivedAny = true;
-        // 思考过程和正文分开存：混在一起会让回答一团糟
-        if (chunk.thinking) {
-          assistant.thinking += chunk.text;
-        } else {
-          assistant.content += chunk.text;
-        }
-        scheduleNotify();
-      }
+      _subscription = _api
+          .streamChat(settings: settings, history: context)
+          .listen(
+            (chunk) {
+              if (chunk.done) {
+                if (!done.isCompleted) done.complete();
+                return;
+              }
+              if (token != _activeToken || chunk.isEmpty) return;
+              receivedAny = true;
+              // 思考过程和正文分开存：混在一起会让回答一团糟
+              if (chunk.thinking) {
+                assistant.thinking += chunk.text;
+              } else {
+                assistant.content += chunk.text;
+              }
+              scheduleNotify();
+            },
+            onError: (Object error, StackTrace stack) {
+              if (!done.isCompleted) done.completeError(error, stack);
+            },
+            onDone: () {
+              if (!done.isCompleted) done.complete();
+            },
+            cancelOnError: true,
+          );
+      await done.future;
 
       final bool finished = token == _activeToken;
-      if (finished && assistant.content.trim().isEmpty && !assistant.hasThinking) {
+      if (finished &&
+          assistant.content.trim().isEmpty &&
+          !assistant.hasThinking) {
         assistant.content = '（模型没有返回内容，请重试或换一个模型）';
         assistant.error = true;
       }
     } catch (e) {
-      final String msg =
-          e is DeepSeekException ? e.message : '请求失败：${e.toString()}';
+      final String msg = e is DeepSeekException
+          ? e.message
+          : '请求失败：${e.toString()}';
 
       if (token == _activeToken && !receivedAny) {
         // 一个字都没收到：把空气泡换成错误气泡，不留空白
@@ -255,27 +313,35 @@ class ChatProvider extends ChangeNotifier {
         conv.messages.remove(assistant);
       }
       if (token == _activeToken) _loading = false;
+      if (identical(_requestDone, done)) {
+        _checkpoint?.cancel();
+        _api.cancel();
+        final subscription = _subscription;
+        if (subscription != null) unawaited(subscription.cancel());
+        _subscription = null;
+        _requestDone = null;
+      }
       notifyListeners();
-      await _persist();
+      await _persist(conv);
     }
   }
 
   /// 停止生成：中断流式接收，已经收到的内容保留。
   void stop() {
     if (!_loading) return;
-    _activeToken++;
-    _loading = false;
+    final conv = _active;
+    _cancelRequest();
     _error = '已停止生成。';
     notifyListeners();
+    if (conv != null) unawaited(_persist(conv));
   }
 
   /// 离开页面时调用：中断流式请求，但保留已经收到的内容。
   Future<void> stopAndPersist() async {
-    if (!_loading) return;
-    _activeToken++;
-    _loading = false;
+    final conv = _active;
+    _cancelRequest();
     notifyListeners();
-    await _persist();
+    if (conv != null) await _persist(conv);
   }
 
   /// 只清掉提示信息
@@ -285,14 +351,16 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _persist() async {
-    final Conversation? conv = _active;
-    if (conv == null) return;
+  Future<void> _persist(Conversation conv) async {
+    if (!_conversations.contains(conv)) return;
     try {
       await _storage.saveConversation(conv);
-      await _storage.saveActiveConversationId(conv.id);
+      if (identical(_active, conv)) {
+        await _storage.saveActiveConversationId(conv.id);
+      }
     } catch (_) {
-      // 存储失败不应该影响聊天本身
+      _error = '聊天记录暂时保存失败，请先导出重要内容。';
+      notifyListeners();
     }
   }
 }

@@ -57,16 +57,14 @@ class ConversationDrawer extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     '历史对话',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                   const Spacer(),
                   Text(
                     '${conversations.where((Conversation c) => !c.isEmpty).length} 条',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -78,21 +76,31 @@ class ConversationDrawer extends StatelessWidget {
                   ? Center(
                       child: Text(
                         '还没有历史对话',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 10,
+                      ),
                       itemCount: conversations.length,
                       itemBuilder: (BuildContext context, int i) {
                         final Conversation c = conversations[i];
                         final bool selected = c.id == activeId;
                         return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           selected: selected,
-                          selectedTileColor:
-                              scheme.primary.withValues(alpha: 0.10),
+                          selectedTileColor: scheme.primary.withValues(
+                            alpha: 0.10,
+                          ),
                           leading: Icon(
                             c.isEmpty
                                 ? Icons.chat_bubble_outline
@@ -110,48 +118,47 @@ class ConversationDrawer extends StatelessWidget {
                             '${formatRelative(c.updatedAt)} · ${c.preview}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
+                            style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                           // 长按改名；右侧 ⋮ 里也有改名与删除
-                          onLongPress: () => _showRenameDialog(
-                            context,
-                            c,
-                            onRename: onRename,
-                          ),
+                          onLongPress: () =>
+                              _showRenameDialog(context, c, onRename: onRename),
                           trailing: PopupMenuButton<String>(
                             tooltip: '更多',
                             icon: const Icon(Icons.more_vert, size: 18),
                             onSelected: (String v) {
                               if (v == 'rename') {
-                                _showRenameDialog(context, c, onRename: onRename);
+                                _showRenameDialog(
+                                  context,
+                                  c,
+                                  onRename: onRename,
+                                );
                               } else if (v == 'delete') {
                                 _confirmDelete(context, c, onDelete: onDelete);
                               }
                             },
                             itemBuilder: (BuildContext ctx) =>
                                 const <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'rename',
-                                child: ListTile(
-                                  dense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: Icon(Icons.edit_outlined),
-                                  title: Text('重命名'),
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'delete',
-                                child: ListTile(
-                                  dense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: Icon(Icons.delete_outline),
-                                  title: Text('删除'),
-                                ),
-                              ),
-                            ],
+                                  PopupMenuItem<String>(
+                                    value: 'rename',
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(Icons.edit_outlined),
+                                      title: Text('重命名'),
+                                    ),
+                                  ),
+                                  PopupMenuItem<String>(
+                                    value: 'delete',
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(Icons.delete_outline),
+                                      title: Text('删除'),
+                                    ),
+                                  ),
+                                ],
                           ),
                           onTap: () {
                             Navigator.of(context).pop();

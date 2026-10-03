@@ -1,4 +1,4 @@
-/// 应用设置（保存在 shared_preferences 里，API Key 绝不硬编码）。
+/// 内存设置模型；落盘时密钥与普通设置分开保存。
 class AppSettings {
   AppSettings({
     this.apiKey = '',
@@ -31,12 +31,12 @@ class AppSettings {
 
   /// 每个模型在界面上的显示名
   static String modelLabel(String model) => switch (model) {
-        'deepseek-flash' => 'deepseek-flash（快，日常对话）',
-        'deepseek-v4-pro' => 'deepseek-v4-pro（强，复杂推理）',
-        'deepseek-chat' => 'deepseek-chat（上一代·通用）',
-        'deepseek-reasoner' => 'deepseek-reasoner（上一代·推理）',
-        _ => model,
-      };
+    'deepseek-flash' => 'deepseek-flash（快，日常对话）',
+    'deepseek-v4-pro' => 'deepseek-v4-pro（强，复杂推理）',
+    'deepseek-chat' => 'deepseek-chat（上一代·通用）',
+    'deepseek-reasoner' => 'deepseek-reasoner（上一代·推理）',
+    _ => model,
+  };
 
   /// 顶栏胶囊里的短名
   static String modelShortName(String model) {
@@ -67,6 +67,7 @@ class AppSettings {
   String get maskedApiKey {
     final String k = apiKey.trim();
     if (k.isEmpty) return '未设置';
+    if (k.length <= 2) return '****';
     if (k.length <= 10) return '${k.substring(0, 2)}****';
     return '${k.substring(0, 6)}****${k.substring(k.length - 4)}';
   }
@@ -90,13 +91,13 @@ class AppSettings {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'apiKey': apiKey,
-        'baseUrl': baseUrl,
-        'model': model,
-        'systemPrompt': systemPrompt,
-        'temperature': temperature,
-        'themeMode': themeMode,
-      };
+    'apiKey': apiKey,
+    'baseUrl': baseUrl,
+    'model': model,
+    'systemPrompt': systemPrompt,
+    'temperature': temperature,
+    'themeMode': themeMode,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(

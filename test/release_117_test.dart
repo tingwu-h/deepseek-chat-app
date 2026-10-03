@@ -1,0 +1,401 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:deepseek_chat/main.dart';
+import 'package:deepseek_chat/models/app_settings.dart';
+import 'package:deepseek_chat/models/chat_attachment.dart';
+import 'package:deepseek_chat/models/chat_message.dart';
+import 'package:deepseek_chat/models/conversation.dart';
+import 'package:deepseek_chat/providers/app_settings_provider.dart';
+import 'package:deepseek_chat/providers/chat_provider.dart';
+import 'package:deepseek_chat/services/attachment_service.dart';
+import 'package:deepseek_chat/services/deepseek_service.dart';
+import 'package:deepseek_chat/services/storage_service.dart';
+
+class Paths extends PathProviderPlatform {
+  Paths(this.root);
+  final String root;
+  @override
+  Future<String?> getApplicationDocumentsPath() async => root;
+}
+
+class WaitingClient extends http.BaseClient {
+  final started = Completer<void>();
+  bool aborted = false;
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    started.complete();
+    await (request as http.AbortableRequest).abortTrigger;
+    aborted = true;
+    throw http.RequestAbortedException();
+  }
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'legacy key migrates before plaintext is removed; failure keeps old key',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'ds_settings': jsonEncode({
+          'apiKey': 'fixture-key',
+          'model': 'deepseek-flash',
+        }),
+      });
+      String? secret;
+      final storage = StorageService(
+        readKey: () async => secret,
+        writeKey: (key) async {
+          secret = key;
+        },
+      );
+      expect((await storage.loadSettings()).apiKey, 'fixture-key');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('ds_settings'), isNot(contains('fixture-key')));
+      expect((await storage.loadSettings()).apiKey, 'fixture-key');
+      await storage.saveSettings(AppSettings(apiKey: ''));
+      expect(secret, '');
+      await prefs.setString(
+        'ds_settings',
+        jsonEncode({'apiKey': 'retain-on-failure'}),
+      );
+      final failing = StorageService(
+        writeKey: (_) async => throw StateError('locked'),
+      );
+      await expectLater(failing.loadSettings(), throwsStateError);
+      expect(prefs.getString('ds_settings'), contains('retain-on-failure'));
+    },
+  );
+
+  test(
+    'concurrent saves retain every conversation and do not trim messages',
+    () async {
+      final storage = StorageService();
+      final large = Conversation(
+        id: 'large',
+        messages: List.generate(510, (i) => ChatMessage.user('message $i')),
+      );
+      await Future.wait([
+        storage.saveConversation(large),
+        ...List.generate(
+          102,
+          (i) => storage.saveConversation(Conversation(id: 'c$i')),
+        ),
+      ]);
+      final all = await storage.loadConversations();
+      expect(all.length, 103);
+      expect(all.firstWhere((c) => c.id == 'large').messages.length, 510);
+    },
+  );
+
+  test(
+    'attachment cleanup preserves shared references and original files',
+    () async {
+      final root = await Directory.systemTemp.createTemp('deepseek-117-test-');
+      final previous = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = Paths(root.path);
+      try {
+        final dir = await Directory('${root.path}/attachments').create();
+        final image = await File('${dir.path}/shared.png')
+            .writeAsBytes([1, 2, 3]);
+        final original = await File('${root.path}/original.png')
+            .writeAsBytes([4]);
+        final attachment = ChatAttachment(
+          name: 'shared.png',
+          path: image.path,
+          kind: 'image',
+        );
+        final storage = StorageService();
+        await storage.saveConversation(
+          Conversation(
+            id: 'a',
+            messages: [
+              ChatMessage.user('A', attachments: [attachment]),
+            ],
+          ),
+        );
+        await storage.saveConversation(
+          Conversation(
+            id: 'b',
+            messages: [
+              ChatMessage.user('B', attachments: [attachment]),
+            ],
+          ),
+        );
+        await storage.deleteConversation('a');
+        expect(await image.exists(), isTrue);
+        await storage.deleteConversation('b');
+        expect(await image.exists(), isFalse);
+        await AttachmentService.removeOwnedFile(original.path);
+        expect(await original.exists(), isTrue);
+      } finally {
+        PathProviderPlatform.instance = previous;
+        await root.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
+    'oversized and missing images fail explicitly; selection is bounded',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('deepseek-117-limit-');
+      try {
+        final file = File('${dir.path}/large.png');
+        final handle = await file.open(mode: FileMode.write);
+        await handle.truncate(AttachmentService.maxImageBytes + 1);
+        await handle.close();
+        final a = ChatAttachment(
+          name: 'large.png',
+          path: file.path,
+          kind: 'image',
+        );
+        await expectLater(a.toApiBlock(), throwsA(isA<AttachmentException>()));
+        await file.delete();
+        await expectLater(a.toApiBlock(), throwsA(isA<AttachmentException>()));
+        expect(
+          () => AttachmentService.validateSelection(List.filled(7, a)),
+          throwsA(isA<AttachmentException>()),
+        );
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    },
+  );
+
+  test('export excludes secrets and image paths', () async {
+    final storage = StorageService();
+    await storage.saveSettings(AppSettings(apiKey: 'do-not-export'));
+    await storage.saveConversation(
+      Conversation(
+        id: 'export',
+        messages: [
+          ChatMessage.user(
+            'hello',
+            attachments: [
+              ChatAttachment(
+                name: 'photo.png',
+                path: '/private/photo.png',
+                kind: 'image',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    final result = await storage.exportHistory();
+    expect(result, contains('hello'));
+    expect(result, isNot(contains('do-not-export')));
+    expect(result, isNot(contains('/private/photo.png')));
+  });
+
+  test('cancels real HTTP request handle before headers arrive', () async {
+    final client = WaitingClient();
+    final api = DeepSeekService(client: client);
+    final future = api
+        .streamChat(
+          settings: AppSettings(apiKey: 'fixture'),
+          history: [ChatMessage.user('hi')],
+        )
+        .toList();
+    final assertion = expectLater(
+      future,
+      throwsA(isA<http.RequestAbortedException>()),
+    );
+    await client.started.future;
+    api.cancel();
+    await assertion;
+    expect(client.aborted, isTrue);
+    api.dispose();
+  });
+
+  test('accepts JSON stream fallback without duplicating request', () async {
+    int calls = 0;
+    final api = DeepSeekService(
+      client: MockClient((_) async {
+        calls++;
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': 'reply', 'reasoning_content': 'think'},
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    final chunks = await api
+        .streamChat(
+          settings: AppSettings(apiKey: 'fixture'),
+          history: [ChatMessage.user('hi')],
+        )
+        .toList();
+    expect(chunks.map((c) => c.text).toList(), ['think', 'reply']);
+    expect(calls, 1);
+    api.dispose();
+  });
+
+  test('rejects insecure endpoints and incompatible image history', () {
+    expect(
+      () => DeepSeekService.endpoint('http://example.com'),
+      throwsA(isA<DeepSeekException>()),
+    );
+    expect(
+      DeepSeekService.endpoint('https://example.com/v1/chat/completions').path,
+      '/v1/chat/completions',
+    );
+    expect(
+      () => DeepSeekService.validateImages('deepseek-v4-pro', [
+        ChatMessage.user(
+          'image',
+          attachments: [
+            ChatAttachment(name: 'a.png', path: 'a.png', kind: 'image'),
+          ],
+        ),
+      ]),
+      throwsA(isA<DeepSeekException>()),
+    );
+  });
+
+  testWidgets(
+    'back timeout and drawer do not exit; dark settings remain usable',
+    (tester) async {
+      final storage = StorageService();
+      final settings = AppSettingsProvider(storage: storage);
+      final chat = ChatProvider(api: DeepSeekService(), storage: storage);
+      await settings.init();
+      await chat.init();
+      int exits = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemNavigator.pop') exits++;
+          return null;
+        },
+      );
+      await tester.pumpWidget(
+        DeepSeekChatApp(settingsProvider: settings, chatProvider: chat),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(exits, 0);
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(exits, 0);
+      await tester.pumpWidget(const SizedBox());
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
+      chat.dispose();
+    },
+  );
+
+  testWidgets('mobile layouts: light chat, dark chat, settings and history', (
+    tester,
+  ) async {
+    if (Platform.environment['DS_UI_CAPTURE'] == 'true') {
+      await tester.runAsync(() async {
+        final fontPath = Platform.environment['DS_PREVIEW_FONT'];
+        final iconsPath = Platform.environment['DS_PREVIEW_ICONS'];
+        if (fontPath != null) {
+          final loader = FontLoader('Roboto')
+            ..addFont(
+              Future.value(
+                ByteData.sublistView(await File(fontPath).readAsBytes()),
+              ),
+            );
+          await loader.load();
+        }
+        if (iconsPath != null) {
+          final loader = FontLoader('MaterialIcons')
+            ..addFont(
+              Future.value(
+                ByteData.sublistView(await File(iconsPath).readAsBytes()),
+              ),
+            );
+          await loader.load();
+        }
+      });
+    }
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = StorageService();
+    final settings = AppSettingsProvider(storage: storage);
+    final chat = ChatProvider(api: DeepSeekService(), storage: storage);
+    await storage.saveConversation(
+      Conversation(
+        id: 'preview',
+        messages: [
+          ChatMessage.user('帮我把今天的灵感整理成三个行动步骤。'),
+          ChatMessage.assistant(
+            '当然可以。我们先从最容易开始的一步做起：\n\n1. **记下来**：用一句话描述你的想法。\n2. **试一试**：选一个今天能完成的小实验。\n3. **回头看**：记录结果，再决定下一步。\n\n你想先聊哪一个想法？',
+          ),
+        ],
+      ),
+    );
+    await settings.init();
+    await settings.update(apiKey: 'preview-only');
+    await chat.init();
+    final key = GlobalKey();
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: key,
+        child: DeepSeekChatApp(settingsProvider: settings, chatProvider: chat),
+      ),
+    );
+    await tester.pumpAndSettle();
+    Future<void> screenshot(String name) async {
+      expect(tester.takeException(), isNull);
+      if (Platform.environment['DS_UI_CAPTURE'] != 'true') return;
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      await tester.runAsync(() async {
+        final image = await boundary.toImage(pixelRatio: 2);
+        final bytes = (await image.toByteData(format: ui.ImageByteFormat.png))!
+            .buffer
+            .asUint8List();
+        await Directory('build/ui-review').create(recursive: true);
+        await File('build/ui-review/$name.png').writeAsBytes(bytes);
+        image.dispose();
+      });
+    }
+
+    await screenshot('chat-light');
+    await settings.update(themeMode: 'dark');
+    await tester.pumpAndSettle();
+    await screenshot('chat-dark');
+    await settings.update(themeMode: 'light');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await screenshot('history');
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+    await screenshot('settings');
+    await tester.pumpWidget(const SizedBox());
+    chat.dispose();
+  });
+}

@@ -18,20 +18,16 @@ class ChatMessage {
     this.error = false,
     this.thinking = '',
     List<ChatAttachment>? attachments,
-  })  : timestamp = timestamp ?? DateTime.now(),
-        attachments = attachments ?? <ChatAttachment>[];
+  }) : timestamp = timestamp ?? DateTime.now(),
+       attachments = attachments ?? <ChatAttachment>[];
 
   /// 便捷构造：用户消息
   ChatMessage.user(String content, {List<ChatAttachment>? attachments})
-      : this(
-          role: MessageRole.user,
-          content: content,
-          attachments: attachments,
-        );
+    : this(role: MessageRole.user, content: content, attachments: attachments);
 
   /// 便捷构造：助手消息
   ChatMessage.assistant(String content)
-      : this(role: MessageRole.assistant, content: content);
+    : this(role: MessageRole.assistant, content: content);
 
   /// `system` / `user` / `assistant`
   final String role;
@@ -65,14 +61,15 @@ class ChatMessage {
   bool get isSystem => role == MessageRole.system;
 
   /// 内容和附件都空才算空消息
-  bool get isBlank => content.trim().isEmpty && attachments.isEmpty;
+  bool get isBlank =>
+      content.trim().isEmpty && attachments.isEmpty && !hasThinking;
 
   /// 发送给 API 的 JSON（纯文本，无附件时用）。
   /// 注意：错误气泡与空内容不能进入上下文，否则会被服务端拒绝。
   Map<String, dynamic> toApiJson() => <String, dynamic>{
-        'role': role,
-        'content': content,
-      };
+    'role': role,
+    'content': content,
+  };
 
   /// 发送给 API 的 JSON（带附件时用 block 数组）。
   ///
@@ -90,16 +87,14 @@ class ChatMessage {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'role': role,
-        'content': content,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'error': error,
-        if (thinking.isNotEmpty) 'thinking': thinking,
-        if (attachments.isNotEmpty)
-          'attachments': attachments
-              .map((ChatAttachment a) => a.toJson())
-              .toList(),
-      };
+    'role': role,
+    'content': content,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'error': error,
+    if (thinking.isNotEmpty) 'thinking': thinking,
+    if (attachments.isNotEmpty)
+      'attachments': attachments.map((ChatAttachment a) => a.toJson()).toList(),
+  };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     final List<dynamic> rawA =

@@ -28,17 +28,12 @@ class _TypingIndicatorState extends State<TypingIndicator>
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return Row(
       children: <Widget>[
-        Icon(
-          Icons.auto_awesome,
-          size: 15,
-          color: scheme.primary,
-        ),
+        Icon(Icons.auto_awesome, size: 15, color: scheme.primary),
         const SizedBox(width: 6),
         Text(
           widget.label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(width: 6),
         AnimatedBuilder(

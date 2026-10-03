@@ -9,6 +9,8 @@ import 'package:deepseek_chat/pages/settings_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/attachment_service.dart';
+import 'package:deepseek_chat/services/platform_service.dart';
+import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/utils/link_actions.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
@@ -22,7 +24,7 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AttachmentService _attachments = AttachmentService();
 
@@ -30,10 +32,63 @@ class _ChatPageState extends State<ChatPage> {
   final List<ChatAttachment> _pending = <ChatAttachment>[];
 
   String? _shownError;
+  Timer? _backTimer;
+  bool _backArmed = false;
+  bool _leaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _backTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _backArmed = false;
+      unawaited(context.read<ChatProvider>().stopAndPersist());
+    }
+  }
+
+  Future<void> _handleBack() async {
+    if (_leaving) return;
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState!.closeDrawer();
+      return;
+    }
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      _backArmed = false;
+      return;
+    }
+    if (!_backArmed) {
+      _backArmed = true;
+      _backTimer?.cancel();
+      _backTimer = Timer(const Duration(seconds: 2), () => _backArmed = false);
+      _showSnack('再按一次回到桌面');
+      return;
+    }
+    _leaving = true;
+    try {
+      await context.read<ChatProvider>().stopAndPersist();
+      if (mounted) await PlatformService.goToDesktop();
+    } finally {
+      _backArmed = false;
+      _leaving = false;
+    }
+  }
 
   // -------------------------------------------------------------- 发送
 
-  Future<void> _handleSend(String text) async {
+  Future<bool> _handleSend(String text) async {
     final ChatProvider chat = context.read<ChatProvider>();
     final AppSettingsProvider settings = context.read<AppSettingsProvider>();
 
@@ -51,15 +106,22 @@ class _ChatPageState extends State<ChatPage> {
           ),
         );
       _openSettings();
-      return;
+      return false;
     }
-    if (text.trim().isEmpty && _pending.isEmpty) return;
+    if (text.trim().isEmpty && _pending.isEmpty) return false;
+    if (!DeepSeekService.supportsImages(settings.model) &&
+        (_pending.any((a) => a.isImage) ||
+            chat.messages.any((m) => m.attachments.any((a) => a.isImage)))) {
+      _showSnack('这个对话包含图片，请在顶部切换到 deepseek-flash 后发送。');
+      return false;
+    }
 
     final List<ChatAttachment> sending = List<ChatAttachment>.from(_pending);
     setState(_pending.clear);
 
     // 故意不 await：让界面立刻回到可输入状态，内容由流式回调驱动刷新
     unawaited(chat.send(text, settings.settings, attachments: sending));
+    return true;
   }
 
   // -------------------------------------------------------------- 附件
@@ -67,8 +129,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _pickImages() async {
     try {
       final List<ChatAttachment> picked = await _attachments.pickImages();
-      if (picked.isEmpty || !mounted) return;
-      setState(() => _pending.addAll(picked));
+      await _acceptAttachments(picked);
     } on AttachmentException catch (e) {
       _showSnack(e.message);
     } catch (e) {
@@ -79,8 +140,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _pickFiles() async {
     try {
       final List<ChatAttachment> picked = await _attachments.pickFiles();
-      if (picked.isEmpty || !mounted) return;
-      setState(() => _pending.addAll(picked));
+      await _acceptAttachments(picked);
     } on AttachmentException catch (e) {
       _showSnack(e.message);
     } catch (e) {
@@ -90,6 +150,37 @@ class _ChatPageState extends State<ChatPage> {
 
   void _removePending(ChatAttachment a) {
     setState(() => _pending.remove(a));
+    if (a.isImage) unawaited(_deletePending([a]));
+  }
+
+  Future<void> _acceptAttachments(List<ChatAttachment> picked) async {
+    if (!mounted) {
+      await _deletePending(picked);
+      return;
+    }
+    try {
+      AttachmentService.validateSelection([..._pending, ...picked]);
+    } catch (_) {
+      await _deletePending(picked);
+      rethrow;
+    }
+    setState(() => _pending.addAll(picked));
+  }
+
+  Future<void> _deletePending(List<ChatAttachment> items) async {
+    try {
+      for (final a in items.where((a) => a.isImage)) {
+        await AttachmentService.removeOwnedFile(a.path);
+      }
+    } catch (_) {
+      if (mounted) _showSnack('部分临时图片未能清理，请稍后重试。');
+    }
+  }
+
+  Future<void> _clearPending() async {
+    final items = List<ChatAttachment>.from(_pending);
+    if (mounted) setState(_pending.clear);
+    await _deletePending(items);
   }
 
   // -------------------------------------------------------------- 会话
@@ -97,7 +188,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _newConversation() async {
     await context.read<ChatProvider>().newConversation();
     if (!mounted) return;
-    setState(_pending.clear);
+    await _clearPending();
   }
 
   void _openSettings() {
@@ -105,6 +196,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _showSnack(String text) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(text)));
@@ -162,10 +254,7 @@ class _ChatPageState extends State<ChatPage> {
       // 正在生成时先拦一次返回：中断流式请求并保留已收到的内容，然后再退出
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
-        if (didPop) return;
-        await chat.stopAndPersist();
-        if (!context.mounted) return;
-        Navigator.of(context).maybePop();
+        if (!didPop) await _handleBack();
       },
       child: Scaffold(
         key: _scaffoldKey,
@@ -173,7 +262,10 @@ class _ChatPageState extends State<ChatPage> {
           conversations: chat.conversations,
           activeId: chat.activeConversationId,
           onNew: _newConversation,
-          onSelect: (String id) => chat.switchConversation(id),
+          onSelect: (String id) async {
+            await _clearPending();
+            await chat.switchConversation(id);
+          },
           onRename: (String id, String name) =>
               chat.renameConversation(id, name),
           onDelete: (String id) => chat.deleteConversation(id),
@@ -196,10 +288,12 @@ class _ChatPageState extends State<ChatPage> {
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                settings.hasApiKey ? '已配置 API Key' : '未配置 API Key',
+                chat.isLoading
+                    ? '正在为你整理回答…'
+                    : (settings.hasApiKey ? '聊聊想法，慢慢找到答案' : '填写密钥，开始第一段对话'),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -217,8 +311,7 @@ class _ChatPageState extends State<ChatPage> {
               onSelected: (String value) {
                 if (value == 'clear') _confirmClearCurrent();
               },
-              itemBuilder: (BuildContext context) =>
-                  <PopupMenuEntry<String>>[
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                 const PopupMenuItem<String>(
                   value: 'clear',
                   child: ListTile(
@@ -299,10 +392,8 @@ class _ChatPageState extends State<ChatPage> {
           ),
           // 生成过程中不让切，避免中途换模型造成上下文混乱
           backgroundColor: chat.isLoading
-              ? Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.5)
+              ? Theme.of(context).colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.5)
               : null,
         ),
       ),

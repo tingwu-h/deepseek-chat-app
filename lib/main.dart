@@ -16,8 +16,9 @@ Future<void> main() async {
 
   // 启动时先把本地数据读出来，避免界面先闪一下空列表
   final StorageService storage = StorageService();
-  final AppSettingsProvider settingsProvider =
-      AppSettingsProvider(storage: storage);
+  final AppSettingsProvider settingsProvider = AppSettingsProvider(
+    storage: storage,
+  );
   final ChatProvider chatProvider = ChatProvider(
     api: DeepSeekService(),
     storage: storage,
@@ -47,10 +48,10 @@ class DeepSeekChatApp extends StatelessWidget {
   final ChatProvider chatProvider;
 
   ThemeMode _themeModeFor(String name) => switch (name) {
-        'light' => ThemeMode.light,
-        'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
-      };
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 
   @override
   Widget build(BuildContext context) {

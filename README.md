@@ -1,99 +1,65 @@
-# DeepSeek 助手
+# DeepSeek 助手 · 1.1.7
 
-一个第三方 DeepSeek 手机客户端。支持流式回复、图片理解、多会话历史，API Key 由你自己填写。
+第三方 Android 聊天客户端：流式回复、思考过程、多会话历史、图片与文本附件、浅色 / 深色模式。使用者自行填写 API Key，与 DeepSeek 官方无隶属关系。
 
-<p>
-  <img alt="platform" src="https://img.shields.io/badge/platform-Android-3ddc84">
-  <img alt="flutter" src="https://img.shields.io/badge/Flutter-3.22%2B-02569b">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="version" src="https://img.shields.io/badge/version-1.1.6-orange">
-</p>
+## 下载与更新
 
-## 下载
+从 [v1.1.7 Release](https://github.com/tingwu-h/deepseek-chat-app/releases/tag/v1.1.7) 下载 `deepseek-chat-v1.1.7.apk`。支持 Android 7.0+，含 arm64-v8a、armeabi-v7a、x86_64。
 
-到 [Releases](../../releases/latest) 页面下载 `deepseek-chat-v1.1.6.apk`，传到手机点开安装。
+1.1.7（构建号 10）保留 1.1.6 的包名和签名，目的是支持覆盖安装。不要为了更新先卸载旧应用；卸载会删除本地数据。签名已核对，实际机型上的覆盖安装仍需实测。当前延续历史调试证书，不宣称已切换正式发布签名；后续签名迁移必须另行规划。
 
-> 支持 Android 7.0+（arm64-v8a / armeabi-v7a / x86_64）。
+## 本次变化
 
-## 功能
+- 主页首次返回提示“再按一次回到桌面”，两秒内第二次返回保存后回桌面。抽屉和键盘优先关闭，设置页正常返回。
+- 生成中切换 / 新建会话、停止、转后台，按原会话保存已收到的回复；生成期间每两秒保存一次。
+- 停止按钮取消网络请求及订阅，旧请求不能污染新会话。服务商最终计费用量以服务商为准。
+- 修复流式状态，生成时使用轻量文字渲染，结束后显示 Markdown。
+- 优化气泡、圆角输入栏、历史选中态与浅深色卡片；修复窄屏模型选择框溢出。
+- Android Key 使用 Keystore + AES-GCM 加密保存；首次启动迁移旧 Key，迁移成功后再移除普通设置中的明文。
+- 自定义接口必须使用 HTTPS，更换接收域名时明确确认 Key 与聊天内容的发送目的地。
+- 删除会话时清理不再被其他会话引用的图片，移除待发送图片也清理副本，不删除相册原文件。
+- 图片单张 5 MB、一次最多 6 个附件、合计 15 MB；文本文件最多 256 KB / 60,000 字符。超限或读取失败明确提示，不静默丢图或截断。
+- 图片对话使用支持图片的模型；当前预置使用 deepseek-flash。切换到不兼容模型时会提醒。
+- 不再因为超过 100 个会话 / 500 条消息而自动删历史；索引缺失时恢复已有会话。
+- 设置页新增“导出聊天文字”，通过 Android 文件选择器保存 JSON；不包含 Key、图片文件或本机图片路径。
+- 完善 GitHub App 查询声明、JSON 响应兼容和清空确认。
 
-- **流式回复** —— 边生成边显示，打字机效果；随时可以停止
-- **思考过程可折叠** —— 推理模型的思考内容单独成块、默认收起，正文保持干净
-- **发图片** —— 拍照或从相册选图，让模型看图说话（`deepseek-flash` 支持图像理解）
-- **发文件** —— 支持 txt / md / json / csv 以及各种代码文件，内容会读进对话
-- **多会话** —— 左侧抽屉管理历史对话，随时新建、切换、删除
-- **本地保存** —— 对话记录存在手机本地，重开应用还在
-- **Markdown 渲染** —— 代码块、列表都能正常显示，长按气泡可复制
-- **深色模式** —— 跟随系统，也可以手动指定浅色 / 深色
-- **模型可切换** —— 顶栏一键切换，还能自己填模型名
+## 使用
 
-## 截图
+### 界面预览
 
-> 欢迎提 PR 补充截图。
+以下由实际 Flutter 组件以模拟聊天内容渲染，字体使用本机预览字体，并非手机实拍。
 
-| 聊天 | 发图片 | 历史会话 | 设置 |
-| :---: | :---: | :---: | :---: |
-| _待补充_ | _待补充_ | _待补充_ | _待补充_ |
+<img src="docs/screenshots/chat-light.png" width="230" alt="浅色聊天界面"> <img src="docs/screenshots/chat-dark.png" width="230" alt="深色聊天界面"> <img src="docs/screenshots/settings.png" width="230" alt="设置界面">
 
-## 快速开始
+左侧菜单 → 设置 → 填写 API Key → 保存。Key 可在 [DeepSeek 开放平台](https://platform.deepseek.com)申请。“测试连接”会发出真实请求，可能产生 API 用量。
 
-需要 Flutter 3.22 或更高版本。
+图片入口从相册选择，当前没有独立拍照按钮。文件支持 txt / md / json / csv / 代码等纯文本，不支持解析 PDF / Word。模型能力以[官方文档](https://api-docs.deepseek.com/zh-cn/quick_start/pricing)为准。
 
-```bash
-git clone https://github.com/tingwu-h/deepseek-chat-app.git
-cd deepseek-chat-app
-flutter pub get
-flutter create . --platforms=android   # 补齐原生工程（图标、Gradle wrapper 等）
-flutter run
+## 隐私与数据
+
+聊天数据保存在设备应用私有目录。Android 密钥加密不等于聊天内容全部加密。发送时，所选接口会收到密钥、当前会话上下文和附件；自定义 Base URL 可能属于第三方，请只使用可信服务。系统备份与设备迁移已排除此 App 的数据，重要文字请主动导出。导出 JSON 含聊天内容，请妥善保存。
+
+当前持续验证的平台是 Android。其他平台没有持久安全存储实现，密钥仅留内存，不应视为已经支持发布的 iOS / 桌面版本。
+
+## 开发与离线构建
+
+已验证 Flutter **3.47.5**、Dart **3.13.4**、JDK **17**、Android SDK **36**。已提交 `pubspec.lock`、Gradle wrapper 和图标，无需再运行 `flutter create .` 覆盖原生代码。
+
+```powershell
+# 使用已有 C:\dsbuild 工具及缓存，不重复下载
+& .\tools\build-release-offline.ps1
 ```
 
-启动后点右上角 **⋮ → 设置** 填入 API Key：
+脚本只构建与校验证书，不上传 GitHub、不安装 App。若缺少 SDK 或依赖缓存，会失败并报告，不自动下载。产物位于 `dist/deepseek-chat-v1.1.7.apk`。
 
-1. 打开 [platform.deepseek.com](https://platform.deepseek.com) 注册登录
-2. 左侧 **API Keys** → 创建，复制 `sk-` 开头的字符串
-3. 回到应用粘贴进设置页，点 **测试连接** 确认可用
-
-> API Key 只保存在手机本地（`shared_preferences`），代码里没有硬编码，
-> 也不会发给除了 DeepSeek 官方接口以外的任何服务器。
-
-## 项目结构
-
-```
-lib/
-├── main.dart                       入口：初始化存储、注入 Provider、主题与路由
-├── models/                         数据模型（消息、附件、会话、设置）
-├── services/
-│   ├── deepseek_service.dart        API 调用（SSE 流式 + 多模态）
-│   ├── storage_service.dart         本地持久化（多会话）
-│   └── attachment_service.dart      选图 / 选文件
-├── providers/                      状态管理
-├── pages/                          聊天页、设置页
-├── widgets/                        气泡、输入栏、会话抽屉等组件
-├── theme/                          浅色 / 深色主题
-└── utils/                          小工具
+```shell
+flutter pub get --offline
+flutter analyze --no-pub
+flutter test --no-pub
 ```
 
-## 常见问题
-
-**回复不是流式，而是一次性出现？**
-部分代理会缓冲 SSE，检查是否开了会改写响应的网络中间层。
-
-**报 401 / 402？**
-401 是 Key 无效或过期；402 是账户余额不足，去[开放平台](https://platform.deepseek.com/top_up)充值。
-
-**模型名报错？**
-模型名以[官方文档](https://api-docs.deepseek.com/zh-cn/quick_start/pricing)为准。
-官方改版后，到设置页的「自定义模型名」里填新的即可，不用改代码。
-
-**聊天记录存在哪？怎么清？**
-存在应用私有的 `shared_preferences` 里。
-聊天页 **⋮ → 清空当前对话** 删当前会话，设置页可以清空全部。
-
-## 说明
-
-- 本项目是个人学习作品，与 DeepSeek 官方无关。
-- 使用前请确认符合 [DeepSeek 服务条款](https://platform.deepseek.com)。
-- 构建产物使用 debug 签名，安装时系统可能提示「未经安全检测」，继续安装即可。
+测试使用模拟接口，不依赖真实 API Key。修复与验收记录见 [1.1.7 更新说明](docs/1.1.7-更新说明.md)。
 
 ## 许可证
 

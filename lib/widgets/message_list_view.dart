@@ -64,8 +64,7 @@ class _MessageListViewState extends State<MessageListView> {
 
     // 最后一条助手消息正在流式接收时，需要显示输入光标/等待动画
     final int lastIndex = messages.length;
-    final bool typingLast =
-        widget.isLoading && messages.last.content.isEmpty;
+    final bool typingLast = widget.isLoading;
 
     return ListView.builder(
       controller: _controller,
@@ -114,18 +113,16 @@ class _EmptyHint extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               '新对话',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
             ),
             if (!hasApiKey) ...<Widget>[
               const SizedBox(height: 8),
               Text(
                 '还没配置 API Key，从左侧抽屉进入「设置」填写。',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 10),
               // 新用户第一眼就该有地方去申请，不用自己找网址

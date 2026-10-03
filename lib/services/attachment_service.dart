@@ -22,12 +22,70 @@ class AttachmentService {
   AttachmentService({ImagePicker? picker}) : _picker = picker ?? ImagePicker();
 
   final ImagePicker _picker;
+  static const maxImageBytes = 5 * 1024 * 1024;
+  static const maxTextBytes = 256 * 1024;
+  static const maxAttachments = 6;
+  static const maxTotalBytes = 15 * 1024 * 1024;
+
+  static Future<void> removeOwnedFile(String filePath) async {
+    if (filePath.isEmpty) return;
+    final base = await getApplicationDocumentsDirectory();
+    final dir = Directory('${base.path}/attachments');
+    if (!await dir.exists()) return;
+    final file = File(filePath);
+    if (!await file.exists()) return;
+    // Never delete arbitrary originals, symlinks, or paths outside our own folder.
+    if (await FileSystemEntity.isLink(filePath)) return;
+    if (await file.parent.resolveSymbolicLinks() !=
+        await dir.resolveSymbolicLinks()) {
+      return;
+    }
+    await file.delete();
+  }
+
+  static void validateSelection(List<ChatAttachment> attachments) {
+    if (attachments.length > maxAttachments) {
+      throw AttachmentException('一次最多添加 6 个附件，请分开发送。');
+    }
+    if (attachments.fold<int>(0, (total, a) => total + a.size) >
+        maxTotalBytes) {
+      throw AttachmentException('本次附件合计超过 15 MB，请减少一些。');
+    }
+  }
 
   /// 文本类文件允许的扩展名（DeepSeek 不接受文件本身，只接受文本内容）
   static const List<String> textExtensions = <String>[
-    'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml', 'html',
-    'dart', 'js', 'ts', 'py', 'java', 'kt', 'c', 'cpp', 'h', 'cs', 'go', 'rs',
-    'swift', 'php', 'rb', 'sh', 'sql', 'ini', 'conf', 'properties', 'gradle',
+    'txt',
+    'md',
+    'markdown',
+    'json',
+    'csv',
+    'log',
+    'yaml',
+    'yml',
+    'xml',
+    'html',
+    'dart',
+    'js',
+    'ts',
+    'py',
+    'java',
+    'kt',
+    'c',
+    'cpp',
+    'h',
+    'cs',
+    'go',
+    'rs',
+    'swift',
+    'php',
+    'rb',
+    'sh',
+    'sql',
+    'ini',
+    'conf',
+    'properties',
+    'gradle',
   ];
 
   /// 单个文本文件最多读多少字符（避免把接口撑爆）
@@ -42,16 +100,26 @@ class AttachmentService {
       imageQuality: 85,
     );
     if (picked.isEmpty) return <ChatAttachment>[];
+    if (picked.length > maxAttachments) {
+      throw AttachmentException('一次最多选择 6 张图片。');
+    }
+    for (final x in picked) {
+      if (await x.length() > maxImageBytes) {
+        throw AttachmentException('图片 ${x.name} 超过 5 MB，请缩小后再试。');
+      }
+    }
 
     final List<ChatAttachment> result = <ChatAttachment>[];
     for (final XFile x in picked) {
       final File saved = await _persist(File(x.path), x.name);
-      result.add(ChatAttachment(
-        name: x.name,
-        path: saved.path,
-        kind: 'image',
-        size: await saved.length(),
-      ));
+      result.add(
+        ChatAttachment(
+          name: x.name,
+          path: saved.path,
+          kind: 'image',
+          size: await saved.length(),
+        ),
+      );
     }
     return result;
   }
@@ -67,27 +135,45 @@ class AttachmentService {
       type: FileType.any,
     );
     if (files.isEmpty) return <ChatAttachment>[];
+    if (files.length > maxAttachments) {
+      throw AttachmentException('一次最多选择 6 个附件。');
+    }
 
     final List<ChatAttachment> out = <ChatAttachment>[];
     final List<String> rejected = <String>[];
 
     for (final PlatformFile f in files) {
       final String? p = f.path;
-      if (p == null) continue;
+      if (p == null) {
+        rejected.add('${f.name}（无法读取）');
+        continue;
+      }
       final String ext = f.name.toLowerCase().contains('.')
           ? f.name.toLowerCase().split('.').last
           : '';
-      final bool isImage = <String>['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
-          .contains(ext);
+      final bool isImage = <String>[
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'bmp',
+      ].contains(ext);
 
       if (isImage) {
+        if (await File(p).length() > maxImageBytes) {
+          rejected.add('${f.name}（图片超过 5 MB）');
+          continue;
+        }
         final File saved = await _persist(File(p), f.name);
-        out.add(ChatAttachment(
-          name: f.name,
-          path: saved.path,
-          kind: 'image',
-          size: await saved.length(),
-        ));
+        out.add(
+          ChatAttachment(
+            name: f.name,
+            path: saved.path,
+            kind: 'image',
+            size: await saved.length(),
+          ),
+        );
         continue;
       }
 
@@ -99,6 +185,10 @@ class AttachmentService {
       // 文本类：读进来（限制长度）
       String content;
       try {
+        if (await File(p).length() > maxTextBytes) {
+          rejected.add('${f.name}（文本文件超过 256 KB）');
+          continue;
+        }
         content = await File(p).readAsString();
       } catch (_) {
         // 不是 UTF-8 就当二进制，放弃
@@ -106,18 +196,24 @@ class AttachmentService {
         continue;
       }
       if (content.length > maxTextChars) {
-        content = '${content.substring(0, maxTextChars)}\n…（内容过长，已截断）';
+        rejected.add('${f.name}（超过 60000 字符，请拆分文件）');
+        continue;
       }
-      out.add(ChatAttachment(
-        name: f.name,
-        path: p,
-        kind: 'text',
-        size: (f.lengthSync() ?? await f.length()) ?? content.length,
-        textContent: content,
-      ));
+      out.add(
+        ChatAttachment(
+          name: f.name,
+          path: p,
+          kind: 'text',
+          size: (f.lengthSync() ?? await f.length()) ?? content.length,
+          textContent: content,
+        ),
+      );
     }
 
-    if (out.isEmpty && rejected.isNotEmpty) {
+    if (rejected.isNotEmpty) {
+      for (final a in out.where((a) => a.isImage)) {
+        await removeOwnedFile(a.path);
+      }
       throw AttachmentException(
         '不支持这些文件：${rejected.join('、')}\n'
         '图片支持 jpg/png/gif/webp；文档支持 txt/md/json/csv/代码等纯文本。',

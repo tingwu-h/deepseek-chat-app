@@ -29,3 +29,8 @@ plugins {
 // allprojects { repositories { ... } } 负责。
 
 include(":app")
+
+// Reuse an existing SDK/dependency cache without downloading toolchains.
+if (System.getenv("DS_OFFLINE_BUILD") == "true") {
+    gradle.startParameter.isOffline = true
+}

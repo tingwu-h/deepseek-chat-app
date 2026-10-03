@@ -5,14 +5,15 @@ import 'package:deepseek_chat/services/storage_service.dart';
 
 /// 应用根状态：设置 + 主题模式 + 初始化状态。
 ///
-/// API Key 只保存在这里（以及 shared_preferences），任何时候都不写死在代码里。
+/// Android 密钥持久化由 Keystore 保护，普通设置与密钥分开保存。
 class AppSettingsProvider extends ChangeNotifier {
-  AppSettingsProvider({required StorageService storage}) : _storage = storage;
+  AppSettingsProvider({required this._storage});
 
   final StorageService _storage;
 
   AppSettings _settings = AppSettings();
   bool _initialized = false;
+  String? initializationWarning;
 
   AppSettings get settings => _settings;
 
@@ -30,7 +31,11 @@ class AppSettingsProvider extends ChangeNotifier {
   String get themeModeName => _settings.themeMode;
 
   Future<void> init() async {
-    _settings = await _storage.loadSettings();
+    try {
+      _settings = await _storage.loadSettings();
+    } catch (_) {
+      initializationWarning = '未能读取本机密钥，请重新填写。原聊天记录不受影响。';
+    }
     _initialized = true;
     notifyListeners();
   }
@@ -43,7 +48,7 @@ class AppSettingsProvider extends ChangeNotifier {
     double? temperature,
     String? themeMode,
   }) async {
-    _settings = _settings.copyWith(
+    final next = _settings.copyWith(
       apiKey: apiKey,
       baseUrl: baseUrl,
       model: model,
@@ -51,17 +56,19 @@ class AppSettingsProvider extends ChangeNotifier {
       temperature: temperature,
       themeMode: themeMode,
     );
+    await _storage.saveSettings(next);
+    _settings = next;
+    initializationWarning = null;
     notifyListeners();
-    await _storage.saveSettings(_settings);
   }
 
   /// 一键恢复默认（会同时清空 API Key）
   Future<void> resetToDefaults() => update(
-        apiKey: '',
-        baseUrl: AppSettings.defaultBaseUrl,
-        model: AppSettings.defaultModel,
-        systemPrompt: '',
-        temperature: 1.0,
-        themeMode: 'system',
-      );
+    apiKey: '',
+    baseUrl: AppSettings.defaultBaseUrl,
+    model: AppSettings.defaultModel,
+    systemPrompt: '',
+    temperature: 1.0,
+    themeMode: 'system',
+  );
 }

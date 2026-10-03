@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
+import 'package:deepseek_chat/services/attachment_service.dart';
 
 /// 流式返回的一小段内容。
 class ChatChunk {
-  const ChatChunk(this.text, {this.thinking = false});
+  const ChatChunk(this.text, {this.thinking = false, this.done = false});
+  final bool done;
 
   /// 本段的文字（可能为空串，例如只带 finish_reason 的最后一帧）
   final String text;
@@ -34,21 +37,27 @@ class DeepSeekException implements Exception {
 ///
 /// 同时实现了：
 /// - `stream: true` 的 SSE 逐字返回（打字机效果）
-/// - `stream: false` 的一次性返回（自动降级 / 备用）
+/// - 兼容流式端点返回普通 JSON；连接测试使用非流式请求
 class DeepSeekService {
   DeepSeekService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
+  Completer<void>? _abort;
+
+  void cancel() {
+    final abort = _abort;
+    if (abort != null && !abort.isCompleted) abort.complete();
+  }
 
   /// 单次请求最长等待时间（流式请求是「首包 + 每个数据块」的超时）
   static const Duration timeout = Duration(seconds: 90);
 
-  /// 这个 App 默认用流式；如果某些路由器/代理吞掉了 SSE，会自动降级成非流式。
-  static const bool preferStream = true;
+  void dispose() {
+    cancel();
+    _client.close();
+  }
 
-  void dispose() => _client.close();
-
-  Uri _endpoint(String baseUrl) {
+  static Uri endpoint(String baseUrl) {
     String base = baseUrl.trim();
     if (base.isEmpty) base = AppSettings.defaultBaseUrl;
     if (!base.startsWith('http://') && !base.startsWith('https://')) {
@@ -60,14 +69,30 @@ class DeepSeekService {
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
-    return Uri.parse('$base/chat/completions');
+    final uri = Uri.parse('$base/chat/completions');
+    if (uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+      throw DeepSeekException('请输入有效的 HTTPS 接口地址，避免泄露密钥。');
+    }
+    return uri;
+  }
+
+  static bool supportsImages(String model) =>
+      model == 'deepseek-flash' ||
+      model == 'deepseek-v4-flash' ||
+      model == 'deepseek-v4-flash-vision-exp';
+
+  static void validateImages(String model, List<ChatMessage> history) {
+    if (!supportsImages(model) &&
+        history.any((m) => !m.error && m.attachments.any((a) => a.isImage))) {
+      throw DeepSeekException('这个对话包含图片，请切换到 deepseek-flash 后发送，或新建纯文字对话。');
+    }
   }
 
   Map<String, String> _headers(String apiKey) => <String, String>{
-        'Content-Type': 'application/json; charset=utf-8',
-        'Accept': 'text/event-stream, application/json',
-        'Authorization': 'Bearer ${apiKey.trim()}',
-      };
+    'Content-Type': 'application/json; charset=utf-8',
+    'Accept': 'text/event-stream, application/json',
+    'Authorization': 'Bearer ${apiKey.trim()}',
+  };
 
   /// 把 UI 上的消息整理成 API 需要的 `messages`。
   ///
@@ -81,6 +106,29 @@ class DeepSeekService {
     String? systemPrompt,
   }) async {
     final List<Map<String, dynamic>> result = <Map<String, dynamic>>[];
+    final attachments = history
+        .where((m) => !m.error)
+        .expand((m) => m.attachments)
+        .toList();
+    int actualSize = 0;
+    for (final a in attachments) {
+      if (a.isImage) {
+        final file = File(a.path);
+        if (!await file.exists()) {
+          throw DeepSeekException('图片 ${a.name} 已丢失，请重新添加或新建对话。');
+        }
+        final size = await file.length();
+        if (size > AttachmentService.maxImageBytes) {
+          throw DeepSeekException('图片 ${a.name} 超过 5 MB，请缩小后再发送。');
+        }
+        actualSize += size;
+      } else {
+        actualSize += utf8.encode(a.textContent ?? '').length;
+      }
+    }
+    if (actualSize > AttachmentService.maxTotalBytes) {
+      throw DeepSeekException('这个对话的附件合计超过 15 MB，请新建对话继续。');
+    }
     final String sys = (systemPrompt ?? '').trim();
     if (sys.isNotEmpty) {
       result.add(<String, dynamic>{'role': MessageRole.system, 'content': sys});
@@ -88,6 +136,7 @@ class DeepSeekService {
     for (final ChatMessage m in history) {
       if (m.error) continue;
       if (m.isBlank) continue;
+      if (m.isAssistant && m.content.trim().isEmpty) continue;
       if (m.attachments.isEmpty) {
         result.add(m.toApiJson());
       } else {
@@ -102,13 +151,12 @@ class DeepSeekService {
     required List<Map<String, dynamic>> messages,
     required bool stream,
     required double temperature,
-  }) =>
-      <String, dynamic>{
-        'model': model,
-        'messages': messages,
-        'stream': stream,
-        'temperature': temperature,
-      };
+  }) => <String, dynamic>{
+    'model': model,
+    'messages': messages,
+    'stream': stream,
+    'temperature': temperature,
+  };
 
   // --------------------------------------------------------------- 流式请求
 
@@ -124,12 +172,16 @@ class DeepSeekService {
     required AppSettings settings,
     required List<ChatMessage> history,
   }) async* {
+    cancel();
+    final abort = Completer<void>();
+    _abort = abort;
     final String apiKey = settings.apiKey.trim();
     if (apiKey.isEmpty) {
       throw DeepSeekException('还没有填写 API Key，请先到「设置」里填写。');
     }
 
-    final Uri uri = _endpoint(settings.baseUrl);
+    final Uri uri = endpoint(settings.baseUrl);
+    validateImages(settings.model, history);
     final List<Map<String, dynamic>> messages = await buildApiMessages(
       history,
       systemPrompt: settings.systemPrompt,
@@ -138,25 +190,52 @@ class DeepSeekService {
       throw DeepSeekException('没有可发送的内容。');
     }
 
-    final http.Request request = http.Request('POST', uri)
-      ..headers.addAll(_headers(apiKey))
-      ..body = jsonEncode(_body(
-        model: settings.model,
-        messages: messages,
-        stream: true,
-        temperature: settings.temperature,
-      ));
+    if (abort.isCompleted) return;
+    final http.Request request =
+        http.AbortableRequest('POST', uri, abortTrigger: abort.future)
+          ..headers.addAll(_headers(apiKey))
+          ..body = jsonEncode(
+            _body(
+              model: settings.model,
+              messages: messages,
+              stream: true,
+              temperature: settings.temperature,
+            ),
+          );
+    if (request.bodyBytes.length > 24 * 1024 * 1024) {
+      throw DeepSeekException('对话附件过多，请新建对话或减少图片后再发送。');
+    }
 
-    final http.StreamedResponse response =
-        await _client.send(request).timeout(timeout);
+    final http.StreamedResponse response = await _client
+        .send(request)
+        .timeout(timeout);
 
     // 服务端直接报错（401 / 402 / 429 ...）：把 JSON 里的 message 读出来
     if (response.statusCode != 200) {
-      final String raw = await response.stream.bytesToString();
+      final String raw = await response.stream.bytesToString().timeout(timeout);
       throw DeepSeekException(
         _friendlyError(response.statusCode, raw),
         statusCode: response.statusCode,
       );
+    }
+
+    // Some compatible services respond with ordinary JSON even when stream=true.
+    // Consume that response once; never resend a billable request automatically.
+    if ((response.headers['content-type'] ?? '').contains('application/json')) {
+      final raw = await response.stream.bytesToString().timeout(timeout);
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      final choices = json['choices'] as List<dynamic>?;
+      if (choices == null || choices.isEmpty) {
+        throw DeepSeekException('服务端没有返回有效回答，请检查接口配置。');
+      }
+      final message = choices.first['message'] as Map<String, dynamic>;
+      final thinking = message['reasoning_content'];
+      if (thinking is String && thinking.isNotEmpty) {
+        yield ChatChunk(thinking, thinking: true);
+      }
+      final content = message['content'];
+      if (content is String && content.isNotEmpty) yield ChatChunk(content);
+      return;
     }
 
     // ---------- 增量解析 SSE ----------
@@ -175,7 +254,10 @@ class DeepSeekService {
       if (!line.startsWith('data:')) continue;
       final String payload = line.substring(5).trim();
       if (payload.isEmpty) continue;
-      if (payload == '[DONE]') break;
+      if (payload == '[DONE]') {
+        yield const ChatChunk('', done: true);
+        break;
+      }
 
       Map<String, dynamic> json;
       try {
@@ -226,6 +308,9 @@ class DeepSeekService {
     required AppSettings settings,
     required List<ChatMessage> history,
   }) async {
+    cancel();
+    final abort = Completer<void>();
+    _abort = abort;
     final String apiKey = settings.apiKey.trim();
     if (apiKey.isEmpty) {
       throw DeepSeekException('还没有填写 API Key，请先到「设置」里填写。');
@@ -236,18 +321,25 @@ class DeepSeekService {
       systemPrompt: settings.systemPrompt,
     );
 
-    final http.Response response = await _client
-        .post(
-          _endpoint(settings.baseUrl),
-          headers: _headers(apiKey),
-          body: jsonEncode(_body(
-            model: settings.model,
-            messages: apiMessages,
-            stream: false,
-            temperature: settings.temperature,
-          )),
-        )
-        .timeout(timeout);
+    validateImages(settings.model, history);
+    final request =
+        http.AbortableRequest(
+            'POST',
+            endpoint(settings.baseUrl),
+            abortTrigger: abort.future,
+          )
+          ..headers.addAll(_headers(apiKey))
+          ..body = jsonEncode(
+            _body(
+              model: settings.model,
+              messages: apiMessages,
+              stream: false,
+              temperature: settings.temperature,
+            ),
+          );
+    final response = await http.Response.fromStream(
+      await _client.send(request).timeout(timeout),
+    ).timeout(timeout);
 
     final String raw = utf8.decode(response.bodyBytes, allowMalformed: true);
     if (response.statusCode != 200) {
@@ -258,8 +350,7 @@ class DeepSeekService {
     }
 
     try {
-      final Map<String, dynamic> json =
-          jsonDecode(raw) as Map<String, dynamic>;
+      final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
       final List<dynamic> choices = json['choices'] as List<dynamic>;
       final Map<String, dynamic> message =
           (choices.first as Map<String, dynamic>)['message']

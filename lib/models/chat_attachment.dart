@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:deepseek_chat/services/attachment_service.dart';
+
 /// 一条消息上挂的附件（图片或文本类文件）。
 ///
 /// 设计要点：
@@ -36,20 +38,20 @@ class ChatAttachment {
   bool get isText => kind == 'text';
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'name': name,
-        'path': path,
-        'kind': kind,
-        'size': size,
-        if (textContent != null) 'textContent': textContent,
-      };
+    'name': name,
+    'path': path,
+    'kind': kind,
+    'size': size,
+    if (textContent != null) 'textContent': textContent,
+  };
 
   factory ChatAttachment.fromJson(Map<String, dynamic> json) => ChatAttachment(
-        name: (json['name'] as String?) ?? '附件',
-        path: (json['path'] as String?) ?? '',
-        kind: (json['kind'] as String?) ?? 'image',
-        size: (json['size'] as int?) ?? 0,
-        textContent: json['textContent'] as String?,
-      );
+    name: (json['name'] as String?) ?? '附件',
+    path: (json['path'] as String?) ?? '',
+    kind: (json['kind'] as String?) ?? 'image',
+    size: (json['size'] as int?) ?? 0,
+    textContent: json['textContent'] as String?,
+  );
 
   /// 用于界面展示的大小文案
   String get sizeLabel {
@@ -59,15 +61,22 @@ class ChatAttachment {
   }
 
   /// 转成 API 需要的 content block。
-  /// 读取失败（文件被删了）时返回 null，调用方跳过即可，不要让整条消息发不出去。
+  /// 读取失败时明确报错，避免界面展示图片但模型实际未收到。
   Future<Map<String, dynamic>?> toApiBlock() async {
     try {
       if (isImage) {
         final File f = File(path);
-        if (!await f.exists()) return null;
+        if (!await f.exists()) {
+          throw AttachmentException('图片 $name 已丢失，请重新添加，或新建对话继续。');
+        }
+        if (await f.length() > AttachmentService.maxImageBytes) {
+          throw AttachmentException('图片 $name 超过 5 MB，请缩小后重新添加。');
+        }
         final List<int> bytes = await f.readAsBytes();
-        // 官方限制：base64 单图 32 MiB；这里留足余量，超过 20 MiB 直接跳过
-        if (bytes.length > 20 * 1024 * 1024) return null;
+        // Recheck after reading in case the file changed during the operation.
+        if (bytes.length > AttachmentService.maxImageBytes) {
+          throw AttachmentException('图片 $name 过大。');
+        }
         final String b64 = base64Encode(bytes);
         return <String, dynamic>{
           'type': 'image_url',
@@ -77,13 +86,14 @@ class ChatAttachment {
         };
       }
       final String? text = textContent;
-      if (text == null || text.isEmpty) return null;
-      return <String, dynamic>{
-        'type': 'text',
-        'text': '【文件：$name】\n$text',
-      };
+      if (text == null || text.isEmpty) {
+        throw AttachmentException('文件 $name 没有可读取的文字。');
+      }
+      return <String, dynamic>{'type': 'text', 'text': '【文件：$name】\n$text'};
+    } on AttachmentException {
+      rethrow;
     } catch (_) {
-      return null;
+      throw AttachmentException('附件 $name 读取失败，请重新添加后再试。');
     }
   }
 

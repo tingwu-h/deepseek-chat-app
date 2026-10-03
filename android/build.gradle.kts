@@ -6,6 +6,12 @@ allprojects {
     }
 }
 
+// Standard Flutter output layout, so flutter build can locate the APK.
+rootProject.layout.buildDirectory.set(rootProject.layout.projectDirectory.dir("../build"))
+subprojects {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir(name))
+}
+
 subprojects {
     project.evaluationDependsOn(":app")
 }

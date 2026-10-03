@@ -25,34 +25,32 @@ class _FakeClient extends http.BaseClient {
         // 一个思考帧 + 两个正文帧 + 结束标记
         // 思考帧用来验证 reasoning_content 不会被混进正文
         ? 'data: ${jsonEncode(<String, dynamic>{
-            'choices': <dynamic>[
-              <String, dynamic>{
-                'delta': <String, dynamic>{
-                  'reasoning_content': '我需要先想想怎么回答。',
-                },
-              }
-            ],
-          })}\n\n'
-            'data: ${jsonEncode(<String, dynamic>{
-            'choices': <dynamic>[
-              <String, dynamic>{
-                'delta': <String, dynamic>{'content': '你好'},
-              }
-            ],
-          })}\n\n'
-            'data: ${jsonEncode(<String, dynamic>{
-              'choices': <dynamic>[
-                <String, dynamic>{
-                  'delta': <String, dynamic>{'content': '，世界'},
-                }
-              ],
-            })}\n\n'
-            'data: [DONE]\n\n'
+                'choices': <dynamic>[
+                  <String, dynamic>{
+                    'delta': <String, dynamic>{'reasoning_content': '我需要先想想怎么回答。'},
+                  },
+                ],
+              })}\n\n'
+              'data: ${jsonEncode(<String, dynamic>{
+                'choices': <dynamic>[
+                  <String, dynamic>{
+                    'delta': <String, dynamic>{'content': '你好'},
+                  },
+                ],
+              })}\n\n'
+              'data: ${jsonEncode(<String, dynamic>{
+                'choices': <dynamic>[
+                  <String, dynamic>{
+                    'delta': <String, dynamic>{'content': '，世界'},
+                  },
+                ],
+              })}\n\n'
+              'data: [DONE]\n\n'
         : jsonEncode(<String, dynamic>{
             'choices': <dynamic>[
               <String, dynamic>{
                 'message': <String, dynamic>{'content': '你好，世界'},
-              }
+              },
             ],
           });
 
@@ -67,8 +65,7 @@ class _FakeClient extends http.BaseClient {
 Future<_Harness> _buildHarness({bool streaming = true}) async {
   SharedPreferences.setMockInitialValues(<String, Object>{});
   final StorageService storage = StorageService();
-  final AppSettingsProvider settings =
-      AppSettingsProvider(storage: storage);
+  final AppSettingsProvider settings = AppSettingsProvider(storage: storage);
   await settings.init();
   await settings.update(apiKey: 'sk-test-key');
 
@@ -77,6 +74,7 @@ Future<_Harness> _buildHarness({bool streaming = true}) async {
     storage: storage,
   );
   await chat.init();
+  addTearDown(chat.dispose);
 
   return _Harness(settings: settings, chat: chat);
 }
@@ -87,10 +85,8 @@ class _Harness {
   final AppSettingsProvider settings;
   final ChatProvider chat;
 
-  Widget get app => DeepSeekChatApp(
-        settingsProvider: settings,
-        chatProvider: chat,
-      );
+  Widget get app =>
+      DeepSeekChatApp(settingsProvider: settings, chatProvider: chat);
 }
 
 void main() {
@@ -108,8 +104,9 @@ void main() {
     expect(find.textContaining('在下面输入问题'), findsNothing);
   });
 
-  testWidgets('⋮ 菜单只有清空当前对话，不重复停止生成（回归：停止已在发送按钮上）',
-      (WidgetTester tester) async {
+  testWidgets('⋮ 菜单只有清空当前对话，不重复停止生成（回归：停止已在发送按钮上）', (
+    WidgetTester tester,
+  ) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -124,8 +121,7 @@ void main() {
     expect(find.text('设置'), findsNothing);
   });
 
-  testWidgets('设置入口唯一：只在会话抽屉里（回归：曾齿轮/菜单/抽屉三处重复）',
-      (WidgetTester tester) async {
+  testWidgets('设置入口唯一：只在会话抽屉里（回归：曾齿轮/菜单/抽屉三处重复）', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -157,6 +153,11 @@ void main() {
     await tester.pump();
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pumpAndSettle();
+    for (var i = 0; i < 100 && h.chat.isLoading; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(h.chat.isLoading, isFalse);
+    await tester.pumpAndSettle();
     expect(h.chat.messages.length, 2);
     final String? firstId = h.chat.activeConversationId;
 
@@ -170,8 +171,7 @@ void main() {
     expect(h.chat.conversations.length, greaterThanOrEqualTo(2));
   });
 
-  testWidgets('聊天页顶栏可以直接切换模型（回归：曾只能在设置页底部改）',
-      (WidgetTester tester) async {
+  testWidgets('聊天页顶栏可以直接切换模型（回归：曾只能在设置页底部改）', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -243,8 +243,7 @@ void main() {
     expect(find.text('测试连接'), findsOneWidget);
   });
 
-  testWidgets('设置页改主题立即生效（回归：曾必须再点保存才生效）',
-      (WidgetTester tester) async {
+  testWidgets('设置页改主题立即生效（回归：曾必须再点保存才生效）', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();

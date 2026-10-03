@@ -20,7 +20,7 @@ class ChatInputBar extends StatefulWidget {
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
-  final ValueChanged<String> onSend;
+  final Future<bool> Function(String) onSend;
 
   /// 点击停止生成
   final VoidCallback onStop;
@@ -71,15 +71,15 @@ class _ChatInputBarState extends State<ChatInputBar> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (widget.isLoading) return;
     final String text = _controller.text.trim();
     // 有附件时允许只发附件、不写文字
     if (text.isEmpty && widget.attachments.isEmpty) return;
     if (!widget.enabled) return;
+    if (!await widget.onSend(text) || !mounted) return;
     _controller.clear();
     _hasText = false;
-    widget.onSend(text);
     _focusNode.requestFocus();
   }
 
@@ -90,11 +90,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        margin: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: scheme.surface,
-          border: Border(
-            top: BorderSide(color: scheme.outlineVariant, width: 0.6),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         child: Column(
@@ -204,8 +206,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style:
-                Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 9),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(fontSize: 9),
           ),
         ],
       ),
@@ -289,9 +291,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           : null,
       tooltip: '发送',
       icon: const Icon(Icons.arrow_upward_rounded),
-      style: IconButton.styleFrom(
-        minimumSize: const Size(48, 48),
-      ),
+      style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
     );
   }
 }

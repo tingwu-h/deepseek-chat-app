@@ -24,8 +24,9 @@ android {
 
     buildTypes {
         release {
-            // 用 debug 签名，方便直接安装了体验；
-            // 要发布给别人用请换成自己的 keystore（见 tools/setup_android_build.ps1 -Release）
+            // 1.1.7 preserves the 1.1.6 signing identity for in-place upgrades.
+            // Release tooling verifies the certificate hash before publication.
+            // Do not rotate the key without an upgrade/data migration plan.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

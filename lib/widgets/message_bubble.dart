@@ -46,20 +46,23 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     // 正在思考、还没出正文时，自动展开让用户知道模型在做什么
     final bool autoExpanded =
-        widget.showTyping && message.hasThinking && !_userToggledThinking;
+        widget.showTyping &&
+        message.content.isEmpty &&
+        message.hasThinking &&
+        !_userToggledThinking;
     final bool thinkingOpen = _thinkingExpanded || autoExpanded;
 
     final Color bubbleColor = isError
         ? scheme.errorContainer
         : isUser
-            ? scheme.primary
-            : scheme.surfaceContainerHighest;
+        ? scheme.primary
+        : scheme.surfaceContainerLowest;
 
     final Color textColor = isError
         ? scheme.onErrorContainer
         : isUser
-            ? scheme.onPrimary
-            : scheme.onSurface;
+        ? scheme.onPrimary
+        : scheme.onSurface;
 
     final BorderRadius radius = BorderRadius.only(
       topLeft: const Radius.circular(18),
@@ -69,10 +72,11 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: <Widget>[
           // 角色标签
           Padding(
@@ -104,14 +108,22 @@ class _MessageBubbleState extends State<MessageBubble> {
             child: GestureDetector(
               onLongPress: () => _copy(context),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: bubbleColor,
                   borderRadius: radius,
                   border: isError
                       ? Border.all(color: scheme.error.withValues(alpha: 0.5))
-                      : null,
+                      : (!isUser
+                            ? Border.all(
+                                color: scheme.outlineVariant.withValues(
+                                  alpha: 0.4,
+                                ),
+                              )
+                            : null),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,8 +142,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                     if (message.content.isEmpty && widget.showTyping)
                       const TypingIndicator(label: '正在生成回答')
                     else if (message.content.isEmpty &&
-                        (message.attachments.isNotEmpty ||
-                            message.hasThinking))
+                        (message.attachments.isNotEmpty || message.hasThinking))
                       // 只有附件或只有思考内容时，不显示空正文
                       const SizedBox.shrink()
                     else if (isUser || isError)
@@ -215,8 +226,11 @@ class _MessageBubbleState extends State<MessageBubble> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.psychology_outlined,
-                      size: 14, color: scheme.onSurfaceVariant),
+                  Icon(
+                    Icons.psychology_outlined,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     expanded ? '思考过程（点击收起）' : '思考过程（$chars 字，点击展开）',
@@ -294,8 +308,11 @@ class _MessageBubbleState extends State<MessageBubble> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.description_outlined,
-                      size: 16, color: scheme.primary),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 16,
+                    color: scheme.primary,
+                  ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
@@ -312,7 +329,10 @@ class _MessageBubbleState extends State<MessageBubble> {
         );
       }
     }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
   }
 
   /// 点缩略图看大图
@@ -330,8 +350,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               File(a.path),
               errorBuilder: (_, __, ___) => const Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('图片已不在本地',
-                    style: TextStyle(color: Colors.white)),
+                child: Text('图片已不在本地', style: TextStyle(color: Colors.white)),
               ),
             ),
           ),
@@ -357,10 +376,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   MarkdownStyleSheet _markdownStyle(ThemeData theme, Color textColor) {
     final ColorScheme scheme = theme.colorScheme;
     return MarkdownStyleSheet.fromTheme(theme).copyWith(
-      p: theme.textTheme.bodyMedium?.copyWith(
-        color: textColor,
-        height: 1.45,
-      ),
+      p: theme.textTheme.bodyMedium?.copyWith(color: textColor, height: 1.45),
       h1: theme.textTheme.titleLarge?.copyWith(color: textColor),
       h2: theme.textTheme.titleMedium?.copyWith(color: textColor),
       h3: theme.textTheme.titleSmall?.copyWith(color: textColor),
@@ -389,14 +405,10 @@ class _MessageBubbleState extends State<MessageBubble> {
       ),
       blockquoteDecoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.45),
-        border: Border(
-          left: BorderSide(color: scheme.primary, width: 3),
-        ),
+        border: Border(left: BorderSide(color: scheme.primary, width: 3)),
       ),
       horizontalRuleDecoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: scheme.outlineVariant),
-        ),
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
       ),
     );
   }

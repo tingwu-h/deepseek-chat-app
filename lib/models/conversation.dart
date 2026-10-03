@@ -11,9 +11,9 @@ class Conversation {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.customTitle,
-  })  : messages = messages ?? <ChatMessage>[],
-        createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : messages = messages ?? <ChatMessage>[],
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   /// 唯一 id（用时间戳，够用且不引入额外依赖）
   final String id;
@@ -64,17 +64,20 @@ class Conversation {
   bool get isEmpty => messages.isEmpty;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'createdAt': createdAt.millisecondsSinceEpoch,
-        'updatedAt': updatedAt.millisecondsSinceEpoch,
-        if (hasCustomTitle) 'customTitle': customTitle,
-        'messages': messages.map((ChatMessage m) => m.toJson()).toList(),
-      };
+    'id': id,
+    'createdAt': createdAt.millisecondsSinceEpoch,
+    'updatedAt': updatedAt.millisecondsSinceEpoch,
+    if (hasCustomTitle) 'customTitle': customTitle,
+    'messages': messages.map((ChatMessage m) => m.toJson()).toList(),
+  };
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
-    final List<dynamic> raw = (json['messages'] as List<dynamic>?) ?? <dynamic>[];
+    final List<dynamic> raw =
+        (json['messages'] as List<dynamic>?) ?? <dynamic>[];
     return Conversation(
-      id: (json['id'] as String?) ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id:
+          (json['id'] as String?) ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       messages: raw
           .whereType<Map<String, dynamic>>()
           .map(ChatMessage.fromJson)
