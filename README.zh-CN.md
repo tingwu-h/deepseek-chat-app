@@ -5,13 +5,13 @@
   <h1>万象 · Wanxiang</h1>
   <p><a href="README.md">English</a> | <strong>简体中文</strong></p>
   <p><strong>汇聚多种 AI，让每一次对话都有更多可能。</strong></p>
-  <p>开源 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
+  <p>源码公开的 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
   <p>
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.0/wanxiang-v1.2.0.apk">下载 APK</a> ·
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/version-v1.2.0-1677FF" alt="版本 v1.2.0"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 及以上">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="使用 Flutter 构建">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-8B5CF6" alt="MIT 许可证"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="禁止商业使用"></a>
   </p>
   <p>
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0">v1.2.0 发布页</a> ·
@@ -28,7 +28,7 @@
 
 ## 项目简介
 
-**万象**是一款运行在 Android 上的开源 AI 聊天助手。它将 DeepSeek、OpenAI、Kimi、Qwen 等服务商放进同一个应用，让你按照问题和习惯选择模型，用文字、图片和文本附件展开对话。
+**万象**是一款运行在 Android 上的源码公开的 AI 聊天助手。它将 DeepSeek、OpenAI、Kimi、Qwen 等服务商放进同一个应用，让你按照问题和习惯选择模型，用文字、图片和文本附件展开对话。
 
 从梳理一个想法、讨论一段代码，到追问图片中的细节，万象希望让这些日常对话更顺手：配置一次，随时切换，重要的讨论留在自己的会话记录里。
 
@@ -124,7 +124,13 @@ v1.2.0 的构建号为 **11**。为延续已有安装与数据，Android 包名�
 
 欢迎通过 [Issues](https://github.com/tingwu-h/wanxiang-chat-app/issues) 反馈问题或提出建议，也欢迎提交 Pull Request。反馈时请提供应用版本、Android 版本、服务商、模型 ID 与可复现步骤；提交代码前运行静态分析及相关测试。
 
-Logo 由项目所有者提供，品牌素材位于 [assets/branding](assets/branding)。项目采用 [MIT License](LICENSE)。
+Logo 由项目所有者提供，品牌素材位于 [assets/branding](assets/branding)。
+
+## 许可证
+
+**禁止商业使用。** 本项目采用 [万象非商业使用许可证 1.0](LICENSE)，允许依照条款进行非商业使用、学习、修改和分发，并须保留版权与许可证声明。修改版同样受禁止商用条款约束。
+
+本项目公开源代码，并限制商业使用。第三方组件遵循各自许可证。此前按 MIT 发布的版本继续适用原有条款；新许可证适用于包含此次许可证变更的版本。
 
 <div align="center">
   <br>

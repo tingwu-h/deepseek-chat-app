@@ -5,13 +5,13 @@
   <h1>Wanxiang · 万象</h1>
   <p><strong>English</strong> | <a href="README.zh-CN.md">简体中文</a></p>
   <p><strong>More models. More possibilities in every conversation.</strong></p>
-  <p>An open-source AI chat app for Android · Choose your models · Bring your own API key</p>
+  <p>A source-available AI chat app for Android · Choose your models · Bring your own API key</p>
   <p>
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.0/wanxiang-v1.2.0.apk">Download APK</a> ·
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/version-v1.2.0-1677FF" alt="Version v1.2.0"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 or later">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="Built with Flutter">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-8B5CF6" alt="MIT license"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="Non-commercial license"></a>
   </p>
   <p>
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0">v1.2.0 Release</a> ·
@@ -28,7 +28,7 @@
 
 ## Meet Wanxiang
 
-**Wanxiang** is an open-source AI chat app for Android. It brings providers such as DeepSeek, OpenAI, Kimi, and Qwen into one app, so you can choose a model that fits your question and chat with text, images, and plain-text attachments.
+**Wanxiang** is a source-available AI chat app for Android. It brings providers such as DeepSeek, OpenAI, Kimi, and Qwen into one app, so you can choose a model that fits your question and chat with text, images, and plain-text attachments.
 
 Whether you are organizing an idea, discussing code, or asking about an image, Wanxiang keeps everyday conversations within reach: configure your providers, switch models when needed, and keep your discussions in local conversation history.
 
@@ -126,7 +126,13 @@ As of **October 3, 2026**, static analysis passed, **51 tests passed**, and the 
 
 Report bugs and suggest improvements through [Issues](https://github.com/tingwu-h/wanxiang-chat-app/issues), or contribute a pull request. Include the app version, Android version, provider, model ID, and reproduction steps in bug reports. Run static analysis and relevant tests before submitting code.
 
-The logo was provided by the project owner; brand assets are in [assets/branding](assets/branding). This project is licensed under the [MIT License](LICENSE).
+The logo was provided by the project owner; brand assets are in [assets/branding](assets/branding).
+
+## License
+
+**Commercial use is prohibited.** This project uses the [Wanxiang Non-Commercial License 1.0](LICENSE). You may use, study, modify, and redistribute it for non-commercial purposes under its terms, retaining copyright and license notices. The restriction also applies to modified versions.
+
+This is source-available software with a non-commercial restriction. Third-party components retain their own licenses. Previously published MIT-licensed versions remain under their original terms; this change applies to versions carrying the new license.
 
 <div align="center">
   <br>

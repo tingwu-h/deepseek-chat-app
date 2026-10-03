@@ -1,21 +1,48 @@
-MIT License
+Wanxiang Non-Commercial License 1.0
+万象非商业使用许可证 1.0
 
 Copyright (c) 2026 tingwu-h
+Effective date / 生效日期：2026-10-03
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+中文条款
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. 授权范围
+在遵守本许可证的前提下，允许任何人出于非商业目的使用、复制、研究、修改及分发本软件的源代码、二进制文件和项目自有文档（统称“本软件”）。本许可证仅适用于相关权利人为其有权许可的内容授予的权利。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. 禁止商业使用
+禁止将本软件或其修改版用于以商业利益、营业收入或金钱报酬为目的的活动，包括但不限于销售或付费分发、收费托管或 API 服务、付费订阅、广告变现、集成至商业产品或服务，以及用于企业经营或向客户提供有偿服务。不得通过免费提供软件但收取配套服务费用等方式规避此限制。
+
+3. 保留声明与分发条件
+复制或分发本软件及其修改版时，必须保留本版权声明及本许可证全文，并明确标注所作修改。对本软件及其修改版的分发必须继续遵守本许可证的非商业使用限制，不得向接收者授予本许可证禁止的商业使用权。
+
+4. 第三方内容与既有授权
+第三方依赖、第三方代码及其他单独标注许可证的内容继续适用其各自许可证，本许可证不改变该等内容的授权。此前已依据 MIT 或其他许可证合法取得的版本，仍适用取得时的许可证；本许可证不追溯撤销既有授权。有关历史版本，请查阅其对应提交或发布标签中的许可证。
+
+5. 终止
+违反本许可证时，本许可证授予的权利自动终止。终止不改变第三方依其原许可证享有的权利。
+
+6. 免责声明
+在适用法律允许的最大范围内，本软件按“原样”提供，不附带任何明示或默示担保，包括适销性、特定用途适用性及不侵权担保。作者或版权持有人不对因使用本软件而产生的索赔、损害或其他责任承担责任。
+
+English terms
+
+1. Grant
+Subject to this license, you may use, copy, study, modify, and distribute the source code, binaries, and project-owned documentation of this software (the “Software”) solely for non-commercial purposes. This grant covers only rights that the relevant rights holders are entitled to license.
+
+2. No commercial use
+You must not use the Software or modified versions for activities intended to obtain commercial advantage, business revenue, or monetary compensation. Prohibited uses include selling or paid distribution; paid hosting or API services; subscriptions; advertising monetization; incorporation into commercial products or services; business operations; and providing paid services to customers. Offering the Software for free while charging for associated services does not avoid this restriction.
+
+3. Notices and redistribution
+Copies and distributions of the Software or modified versions must retain the copyright notice and the full text of this license, and clearly identify modifications. Redistribution of the Software and modified versions remains subject to this license's non-commercial restriction. You may not grant recipients commercial-use rights prohibited by this license.
+
+4. Third-party materials and prior grants
+Third-party dependencies, code, and separately licensed materials remain governed by their respective licenses. This license does not change their terms. Versions lawfully received under MIT or another earlier license remain subject to that license; this license does not retroactively revoke prior grants. Refer to the license at the corresponding commit or release tag for historical versions.
+
+5. Termination
+Rights granted under this license terminate automatically upon violation. Termination does not change rights granted to third-party materials under their own licenses.
+
+6. Disclaimer
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. THE AUTHORS OR COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR CLAIMS, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+The Chinese text controls if the two language versions conflict.
+中英文条款存在歧义时，以中文条款为准。
