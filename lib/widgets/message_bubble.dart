@@ -1,3 +1,5 @@
+import 'package:deepseek_chat/models/provider_catalog.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -91,7 +93,11 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  isUser ? '我' : 'DeepSeek',
+                  isUser
+                      ? '我'
+                      : (message.providerId == null
+                            ? '万象'
+                            : presetFor(message.providerId!).name),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

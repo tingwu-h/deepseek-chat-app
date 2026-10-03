@@ -1,6 +1,13 @@
+import 'package:deepseek_chat/models/provider_catalog.dart';
+
 /// 内存设置模型；落盘时密钥与普通设置分开保存。
 class AppSettings {
   AppSettings({
+    this.providerId = 'deepseek',
+    this.protocol = 'openai',
+    this.imageSupport,
+    this.profiles = const {},
+    this.savedModels = const [],
     this.apiKey = '',
     this.baseUrl = defaultBaseUrl,
     this.model = defaultModel,
@@ -54,6 +61,52 @@ class AppSettings {
     'dark',
   ];
 
+  final List<String> savedModels;
+  final String providerId;
+  final String protocol;
+  final bool? imageSupport;
+  final Map<String, Map<String, dynamic>> profiles;
+  bool get supportsImages => imageSupport ?? modelSupportsImages(model);
+  ProviderPreset get preset => presetFor(providerId);
+  List<String> get modelChoices => {
+    ...preset.models,
+    ...savedModels,
+    model,
+  }.where((m) => m.isNotEmpty).toList();
+
+  AppSettings forProvider(String id) {
+    if (id == providerId) return this;
+    final saved = {...profiles, providerId: profileJson()};
+    final p = presetFor(id);
+    final data =
+        saved[id] ??
+        {
+          'providerId': id,
+          'protocol': p.protocol,
+          'apiKey': '',
+          'baseUrl': p.url,
+          'model': p.models.isEmpty ? '' : p.models.first,
+        };
+    return AppSettings.fromJson({
+      ...data,
+      'providerId': id,
+      'profiles': saved,
+      'themeMode': themeMode,
+      'systemPrompt': systemPrompt,
+    });
+  }
+
+  Map<String, dynamic> profileJson() => {
+    'savedModels': savedModels,
+    'providerId': providerId,
+    'protocol': protocol,
+    'imageSupport': imageSupport,
+    'apiKey': apiKey,
+    'baseUrl': baseUrl,
+    'model': model,
+    'temperature': temperature,
+  };
+
   final String apiKey;
   final String baseUrl;
   final String model;
@@ -73,6 +126,10 @@ class AppSettings {
   }
 
   AppSettings copyWith({
+    String? providerId,
+    String? protocol,
+    bool? imageSupport,
+    Map<String, Map<String, dynamic>>? profiles,
     String? apiKey,
     String? baseUrl,
     String? model,
@@ -81,6 +138,17 @@ class AppSettings {
     String? themeMode,
   }) {
     return AppSettings(
+      savedModels: {
+        ...savedModels,
+        this.model,
+        if (model != null) model,
+      }.where((m) => m.isNotEmpty).toList(),
+      providerId: providerId ?? this.providerId,
+      protocol: protocol ?? this.protocol,
+      imageSupport:
+          imageSupport ??
+          (model != null && model != this.model ? null : this.imageSupport),
+      profiles: profiles ?? this.profiles,
       apiKey: apiKey ?? this.apiKey,
       baseUrl: baseUrl ?? this.baseUrl,
       model: model ?? this.model,
@@ -91,6 +159,11 @@ class AppSettings {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+    'savedModels': savedModels,
+    'providerId': providerId,
+    'protocol': protocol,
+    'imageSupport': imageSupport,
+    'profiles': profiles,
     'apiKey': apiKey,
     'baseUrl': baseUrl,
     'model': model,
@@ -101,6 +174,13 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
+      savedModels: List<String>.from(json['savedModels'] as List? ?? []),
+      providerId: json['providerId'] as String? ?? 'deepseek',
+      protocol: json['protocol'] as String? ?? 'openai',
+      imageSupport: json['imageSupport'] as bool?,
+      profiles: (json['profiles'] as Map<String, dynamic>? ?? {}).map(
+        (k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)),
+      ),
       apiKey: (json['apiKey'] as String?) ?? '',
       baseUrl: (json['baseUrl'] as String?) ?? defaultBaseUrl,
       model: (json['model'] as String?) ?? defaultModel,

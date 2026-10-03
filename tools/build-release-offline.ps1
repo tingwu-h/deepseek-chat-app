@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0 -or ($certificate -join "`n") -notmatch '566bba04384837a
     throw '签名与 v1.1.6 不一致，停止发布以避免覆盖升级失败。请使用原有签名环境。'
 }
 New-Item -ItemType Directory -Path (Join-Path $projectRoot 'dist') -Force | Out-Null
-$output = Join-Path $projectRoot 'dist/deepseek-chat-v1.1.7.apk'
+$output = Join-Path $projectRoot 'dist/wanxiang-v1.2.0.apk'
 Copy-Item -LiteralPath $apk -Destination $output -Force
 Get-FileHash -LiteralPath $output -Algorithm SHA256
 Write-Output "构建与校验完成：$output"

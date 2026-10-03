@@ -1,3 +1,5 @@
+import 'package:deepseek_chat/models/provider_catalog.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -10,8 +12,6 @@ import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/attachment_service.dart';
 import 'package:deepseek_chat/services/platform_service.dart';
-import 'package:deepseek_chat/services/deepseek_service.dart';
-import 'package:deepseek_chat/utils/link_actions.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
@@ -98,21 +98,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: const Text('请先配置 DeepSeek API Key'),
-            action: SnackBarAction(
-              label: '去申请',
-              onPressed: () => openDeepSeekPlatform(context),
-            ),
+            content: const Text('请先配置所选服务商的 API Key'),
+            action: SnackBarAction(label: '去设置', onPressed: _openSettings),
           ),
         );
       _openSettings();
       return false;
     }
     if (text.trim().isEmpty && _pending.isEmpty) return false;
-    if (!DeepSeekService.supportsImages(settings.model) &&
+    if (!settings.settings.supportsImages &&
         (_pending.any((a) => a.isImage) ||
             chat.messages.any((m) => m.attachments.any((a) => a.isImage)))) {
-      _showSnack('这个对话包含图片，请在顶部切换到 deepseek-flash 后发送。');
+      _showSnack('这个对话包含图片，请切换到支持图片的模型，并在设置中确认图片能力。');
       return false;
     }
 
@@ -191,8 +188,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     await _clearPending();
   }
 
-  void _openSettings() {
-    Navigator.of(context).pushNamed(SettingsPage.routeName);
+  Future<void> _openSettings() async {
+    final chat = context.read<ChatProvider>();
+    await chat.stopAndPersist();
+    if (!mounted) return;
+    await Navigator.of(context).pushNamed(SettingsPage.routeName);
+    if (!mounted) return;
+    await chat.bindModel(context.read<AppSettingsProvider>().settings);
   }
 
   void _showSnack(String text) {
@@ -265,6 +267,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           onSelect: (String id) async {
             await _clearPending();
             await chat.switchConversation(id);
+            if (!mounted) return;
+            final route = chat.activeProviderId;
+            if (route != null) {
+              await settings.replace(
+                settings.settings
+                    .forProvider(route)
+                    .copyWith(model: chat.activeModel),
+              );
+            }
           },
           onRename: (String id, String name) =>
               chat.renameConversation(id, name),
@@ -290,12 +301,24 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               Text(
                 chat.isLoading
                     ? '正在为你整理回答…'
-                    : (settings.hasApiKey ? '聊聊想法，慢慢找到答案' : '填写密钥，开始第一段对话'),
+                    : '万象 · ${settings.hasApiKey ? '多模型对话' : '请配置密钥'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 4),
+                child: _buildModelSelector(settings, chat),
+              ),
+            ),
           ),
           actions: <Widget>[
             IconButton(
@@ -303,7 +326,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               onPressed: _newConversation,
               icon: const Icon(Icons.add_comment_outlined),
             ),
-            _buildModelSelector(settings, chat),
             // ⋮ 菜单只有「清空当前对话」这一项。
             // 停止生成已集成在发送按钮上（生成时它会变成 ⏹），不再在这里重复一份。
             PopupMenuButton<String>(
@@ -353,16 +375,29 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Widget _buildModelSelector(AppSettingsProvider provider, ChatProvider chat) {
     final String current = provider.model;
     return PopupMenuButton<String>(
+      enabled: !chat.isLoading,
       tooltip: '切换模型',
       initialValue: current,
       onSelected: (String value) async {
-        if (value == current) return;
-        await provider.update(model: value);
+        try {
+          if (value.startsWith('provider:')) {
+            await provider.selectProvider(value.substring(9));
+          } else {
+            if (value == current) return;
+            await provider.update(model: value);
+          }
+          await chat.bindModel(provider.settings);
+        } catch (_) {
+          if (mounted) _showSnack('配置未能保存，请重试');
+          return;
+        }
         if (!mounted) return;
         _showSnack('已切换到 $value');
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        for (final String m in AppSettings.availableModels)
+        for (final String m in provider.settings.modelChoices.where(
+          (m) => m.isNotEmpty,
+        ))
           PopupMenuItem<String>(
             value: m,
             child: ListTile(
@@ -380,15 +415,22 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               title: Text(AppSettings.modelLabel(m)),
             ),
           ),
+        for (final p in providerCatalog)
+          PopupMenuItem(value: 'provider:${p.id}', child: Text(p.name)),
+        const PopupMenuDivider(),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Chip(
           visualDensity: VisualDensity.compact,
           avatar: const Icon(Icons.memory_outlined, size: 16),
-          label: Text(
-            AppSettings.modelShortName(current),
-            style: Theme.of(context).textTheme.labelSmall,
+          label: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 240),
+            child: Text(
+              '${provider.settings.preset.name.split(' · ').first} · ${AppSettings.modelShortName(current)}',
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
           ),
           // 生成过程中不让切，避免中途换模型造成上下文混乱
           backgroundColor: chat.isLoading

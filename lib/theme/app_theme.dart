@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class AppTheme {
   const AppTheme._();
 
-  /// DeepSeek 品牌蓝
+  /// 万象 Logo 的蓝紫主色
   static const Color seed = Color(0xFF4D6BFE);
 
   static ThemeData light() => _build(Brightness.light);

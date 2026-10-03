@@ -97,7 +97,7 @@ void main() {
 
     // 顶栏标题与空态引导都写「新对话」
     expect(find.text('新对话'), findsNWidgets(2));
-    expect(find.text('给 DeepSeek 发消息…'), findsOneWidget);
+    expect(find.text('给万象发消息…'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
     // 空态不再重复教「怎么发消息」（输入框已有提示）
     expect(find.textContaining('一个字一个字'), findsNothing);
@@ -177,11 +177,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // 默认 deepseek-flash，顶栏胶囊显示 flash
-    expect(find.text('flash'), findsOneWidget);
+    expect(find.text('DeepSeek · flash'), findsOneWidget);
     expect(h.settings.model, 'deepseek-flash');
 
     // 点开模型菜单，选 deepseek-v4-pro
-    await tester.tap(find.text('flash'));
+    await tester.tap(find.text('DeepSeek · flash'));
     await tester.pumpAndSettle();
     expect(find.text('deepseek-v4-pro（强，复杂推理）'), findsOneWidget);
 
@@ -189,7 +189,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 顶栏胶囊更新，且已持久化到设置
-    expect(find.text('v4-pro'), findsOneWidget);
+    expect(find.text('DeepSeek · v4-pro'), findsOneWidget);
     expect(h.settings.model, 'deepseek-v4-pro');
   });
 

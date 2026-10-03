@@ -11,6 +11,8 @@ class Conversation {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.customTitle,
+    this.providerId,
+    this.model,
   }) : messages = messages ?? <ChatMessage>[],
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
@@ -28,6 +30,8 @@ class Conversation {
   ///
   /// 用 String? 而不是空串表示"没改名"，这样用户把名字清空等于恢复自动标题。
   String? customTitle;
+  String? providerId;
+  String? model;
 
   /// 用户是否手动命名过
   bool get hasCustomTitle => (customTitle ?? '').trim().isNotEmpty;
@@ -65,6 +69,8 @@ class Conversation {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
+    'providerId': providerId,
+    'model': model,
     'createdAt': createdAt.millisecondsSinceEpoch,
     'updatedAt': updatedAt.millisecondsSinceEpoch,
     if (hasCustomTitle) 'customTitle': customTitle,
@@ -89,6 +95,8 @@ class Conversation {
           ? DateTime.fromMillisecondsSinceEpoch(json['updatedAt'] as int)
           : null,
       customTitle: json['customTitle'] as String?,
+      providerId: json['providerId'] as String?,
+      model: json['model'] as String?,
     );
   }
 

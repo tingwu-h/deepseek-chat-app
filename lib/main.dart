@@ -28,6 +28,10 @@ Future<void> main() async {
     chatProvider.init(),
   ]);
 
+  if (chatProvider.activeProviderId case final String id) {
+    settingsProvider.restoreRoute(id, chatProvider.activeModel);
+  }
+
   runApp(
     DeepSeekChatApp(
       settingsProvider: settingsProvider,
@@ -67,7 +71,7 @@ class DeepSeekChatApp extends StatelessWidget {
       child: Consumer<AppSettingsProvider>(
         builder: (BuildContext context, AppSettingsProvider settings, _) {
           return MaterialApp(
-            title: 'DeepSeek 助手',
+            title: '万象',
             debugShowCheckedModeBanner: false,
             themeMode: _themeModeFor(settings.themeModeName),
             theme: AppTheme.light(),

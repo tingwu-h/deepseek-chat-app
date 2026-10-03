@@ -121,7 +121,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     style: Theme.of(context).textTheme.bodyMedium,
                     decoration: InputDecoration(
                       hintText: widget.enabled
-                          ? (widget.isLoading ? '正在回复…' : '给 DeepSeek 发消息…')
+                          ? (widget.isLoading ? '正在回复…' : '给万象发消息…')
                           : '请先在设置里填写 API Key',
                       isDense: true,
                     ),

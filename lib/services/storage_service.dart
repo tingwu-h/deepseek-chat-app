@@ -64,7 +64,23 @@ class StorageService {
             throw StateError('密钥迁移未完成');
           }
         }
-        decoded['apiKey'] = await _readKey() ?? '';
+        final secret = await _readKey() ?? '';
+        Map<String, dynamic>? keys;
+        try {
+          final envelope = jsonDecode(secret);
+          if (envelope is Map && envelope['wanxiangKeys'] is Map) {
+            keys = Map<String, dynamic>.from(envelope['wanxiangKeys'] as Map);
+          }
+        } catch (_) {
+          /* Legacy raw key is migrated on next save. */
+        }
+        decoded['apiKey'] =
+            keys?[decoded['providerId'] ?? 'deepseek'] ??
+            (keys == null ? secret : '');
+        final profiles = decoded['profiles'] as Map<String, dynamic>? ?? {};
+        for (final entry in profiles.entries) {
+          (entry.value as Map)['apiKey'] = keys?[entry.key] ?? '';
+        }
         return AppSettings.fromJson(decoded);
       }
       return AppSettings();
@@ -75,8 +91,21 @@ class StorageService {
 
   Future<void> saveSettings(AppSettings settings) => _write(() async {
     final SharedPreferences prefs = await _p;
-    await _writeKey(settings.apiKey);
+    final keys = <String, String>{};
+    final profiles = <String, dynamic>{};
+    for (final entry in settings.profiles.entries) {
+      final profile = Map<String, dynamic>.from(entry.value);
+      keys[entry.key] = profile.remove('apiKey') as String? ?? '';
+      profiles[entry.key] = profile;
+    }
+    keys[settings.providerId] = settings.apiKey;
+    await _writeKey(
+      keys.values.every((key) => key.isEmpty)
+          ? ''
+          : jsonEncode({'wanxiangKeys': keys}),
+    );
     final json = settings.toJson()..remove('apiKey');
+    json['profiles'] = profiles;
     if (!await prefs.setString(_kSettings, jsonEncode(json))) {
       throw StateError('保存设置失败');
     }

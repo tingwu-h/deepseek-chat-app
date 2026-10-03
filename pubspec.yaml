@@ -1,5 +1,5 @@
 name: deepseek_chat
-description: "DeepSeek 聊天助手 —— 支持流式输出、图片理解、多会话历史与深色模式的客户端"
+description: "万象 · 多模型聊天助手 —— 支持流式输出、图片理解、多会话历史与深色模式的客户端"
 publish_to: 'none'
 
 # 版本号：语义化版本 + 构建号
@@ -10,7 +10,7 @@ publish_to: 'none'
 # 1.1.4：新增「关于」页（版本号移入其中，附创作者与开放平台链接）
 # 1.1.5：支持重命名会话；创作者可跳 GitHub；修复流式输出卡顿
 # 1.1.6：创作者优先打开 GitHub App，未安装则回退网页
-version: 1.1.7+10
+version: 1.2.0+11
 environment:
   sdk: ">=3.13.0 <4.0.0"
   flutter: ">=3.47.5"
@@ -53,3 +53,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/

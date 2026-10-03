@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
-import 'package:deepseek_chat/utils/link_actions.dart';
 import 'package:deepseek_chat/widgets/message_bubble.dart';
 
 /// 对话气泡列表。
@@ -87,7 +86,7 @@ class _MessageListViewState extends State<MessageListView> {
 
 /// 空会话时的引导页。
 ///
-/// 刻意保持极简：输入框已经写着「给 DeepSeek 发消息…」，
+/// 刻意保持极简：输入框已经写着「给万象发消息…」，
 /// 屏幕中间再教一遍「怎么发消息」就是重复噪音（之前那版就是这个问题）。
 /// 只有「还没配 API Key」这种用户必须知道的信息才显示。
 class _EmptyHint extends StatelessWidget {
@@ -105,10 +104,13 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(
-              Icons.forum_outlined,
-              size: 48,
-              color: scheme.primary.withValues(alpha: 0.55),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'assets/branding/icon.png',
+                width: 64,
+                height: 64,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -127,9 +129,9 @@ class _EmptyHint extends StatelessWidget {
               const SizedBox(height: 10),
               // 新用户第一眼就该有地方去申请，不用自己找网址
               TextButton.icon(
-                onPressed: () => openDeepSeekPlatform(context),
+                onPressed: () => Navigator.pushNamed(context, '/settings'),
                 icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('打开 DeepSeek 开放平台申请'),
+                label: const Text('配置模型服务商'),
               ),
             ],
           ],

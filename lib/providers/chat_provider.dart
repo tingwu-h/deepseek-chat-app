@@ -13,7 +13,7 @@ import 'package:deepseek_chat/services/storage_service.dart';
 class ChatProvider extends ChangeNotifier {
   ChatProvider({required this._api, required this._storage});
 
-  final DeepSeekService _api;
+  final ChatService _api;
   final StorageService _storage;
 
   /// 全部会话
@@ -73,6 +73,16 @@ class ChatProvider extends ChangeNotifier {
       (Conversation a, Conversation b) => b.updatedAt.compareTo(a.updatedAt),
     );
     return List<Conversation>.unmodifiable(copy);
+  }
+
+  String? get activeProviderId => _active?.providerId;
+  String? get activeModel => _active?.model;
+  Future<void> bindModel(AppSettings settings) async {
+    if (_active == null) return;
+    _active!.providerId = settings.providerId;
+    _active!.model = settings.model;
+    await _persist(_active!);
+    notifyListeners();
   }
 
   String? get activeConversationId => _active?.id;
@@ -208,6 +218,8 @@ class ChatProvider extends ChangeNotifier {
     final Conversation? conv = _active;
     if (conv == null) return;
 
+    conv.providerId = settings.providerId;
+    conv.model = settings.model;
     final int token = ++_activeToken;
     _error = null;
 
@@ -219,7 +231,9 @@ class ChatProvider extends ChangeNotifier {
     );
 
     // 先放一个空气泡，流式内容会一段段追加进去，形成打字机效果
-    final ChatMessage assistant = ChatMessage.assistant('');
+    final ChatMessage assistant = ChatMessage.assistant('')
+      ..providerId = settings.providerId
+      ..model = settings.model;
     conv.messages.add(assistant);
     _loading = true;
     notifyListeners();

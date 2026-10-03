@@ -16,6 +16,8 @@ class ChatMessage {
     required this.content,
     DateTime? timestamp,
     this.error = false,
+    this.providerId,
+    this.model,
     this.thinking = '',
     List<ChatAttachment>? attachments,
   }) : timestamp = timestamp ?? DateTime.now(),
@@ -31,6 +33,8 @@ class ChatMessage {
 
   /// `system` / `user` / `assistant`
   final String role;
+  String? providerId;
+  String? model;
 
   /// 消息正文（流式输出时会被不断追加）
   String content;
@@ -90,6 +94,8 @@ class ChatMessage {
     'role': role,
     'content': content,
     'timestamp': timestamp.millisecondsSinceEpoch,
+    if (providerId != null) 'providerId': providerId,
+    if (model != null) 'model': model,
     'error': error,
     if (thinking.isNotEmpty) 'thinking': thinking,
     if (attachments.isNotEmpty)
@@ -106,6 +112,8 @@ class ChatMessage {
           ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
           : (DateTime.tryParse('${json['timestamp']}') ?? DateTime.now()),
       error: json['error'] == true,
+      providerId: json['providerId'] as String?,
+      model: json['model'] as String?,
       thinking: (json['thinking'] as String?) ?? '',
       attachments: rawA
           .whereType<Map<String, dynamic>>()

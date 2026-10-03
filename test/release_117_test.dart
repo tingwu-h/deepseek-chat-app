@@ -43,6 +43,25 @@ class WaitingClient extends http.BaseClient {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    if (Platform.environment['DS_UI_CAPTURE'] != 'true') return;
+    final font = Platform.environment['DS_UI_FONT'];
+    if (font != null && await File(font).exists()) {
+      for (final family in ['Roboto', 'Ahem']) {
+        await (FontLoader(family)..addFont(
+              File(font).readAsBytes().then((b) => ByteData.sublistView(b)),
+            ))
+            .load();
+      }
+    }
+    final icons = Platform.environment['DS_UI_ICON_FONT'];
+    if (icons != null && await File(icons).exists()) {
+      await (FontLoader('MaterialIcons')..addFont(
+            File(icons).readAsBytes().then((b) => ByteData.sublistView(b)),
+          ))
+          .load();
+    }
+  });
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test(

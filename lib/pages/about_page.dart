@@ -11,8 +11,6 @@ class AboutPage extends StatelessWidget {
 
   static const String routeName = '/about';
 
-  static const String _platformUrl = kDeepSeekPlatformUrl;
-  static const String _docsUrl = kDeepSeekDocsUrl;
   static const String _repoUrl = kProjectRepoUrl;
 
   @override
@@ -36,15 +34,14 @@ class AboutPage extends StatelessWidget {
                     color: scheme.primaryContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Icon(
-                    Icons.forum_outlined,
-                    size: 40,
-                    color: scheme.onPrimaryContainer,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset('assets/branding/icon.png'),
                   ),
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'DeepSeek 助手',
+                  '万象',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -80,20 +77,6 @@ class AboutPage extends StatelessWidget {
             child: Column(
               children: <Widget>[
                 _LinkTile(
-                  icon: Icons.key_outlined,
-                  title: 'DeepSeek 开放平台',
-                  subtitle: '申请 API Key、查看用量与充值',
-                  url: _platformUrl,
-                ),
-                Divider(height: 1, indent: 56),
-                _LinkTile(
-                  icon: Icons.menu_book_outlined,
-                  title: 'API 文档',
-                  subtitle: '模型名、参数与价格说明',
-                  url: _docsUrl,
-                ),
-                Divider(height: 1, indent: 56),
-                _LinkTile(
                   icon: Icons.code,
                   title: '项目源码',
                   subtitle: 'GitHub 仓库（MIT 许可）',
@@ -109,8 +92,8 @@ class AboutPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              '本应用是个人开源作品，与 DeepSeek 官方无关。\n'
-              'API Key 只保存在手机本地，除了 DeepSeek 官方接口外不会发送给任何服务器。',
+              '本应用是个人开源作品，与各模型服务商无隶属关系。\n'
+              'API Key 在本机加密保存；请求时，密钥和聊天内容发送到你为当前服务商设置的接口。',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,

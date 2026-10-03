@@ -1,3 +1,6 @@
+import 'package:deepseek_chat/services/api_protocol.dart';
+import 'package:deepseek_chat/models/provider_catalog.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -38,12 +41,27 @@ class DeepSeekException implements Exception {
 /// 同时实现了：
 /// - `stream: true` 的 SSE 逐字返回（打字机效果）
 /// - 兼容流式端点返回普通 JSON；连接测试使用非流式请求
-class DeepSeekService {
+abstract interface class ChatService {
+  Stream<ChatChunk> streamChat({
+    required AppSettings settings,
+    required List<ChatMessage> history,
+  });
+  Future<String> completeChat({
+    required AppSettings settings,
+    required List<ChatMessage> history,
+  });
+  Future<String> testConnection(AppSettings settings);
+  void cancel();
+  void dispose();
+}
+
+class DeepSeekService implements ChatService {
   DeepSeekService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
   Completer<void>? _abort;
 
+  @override
   void cancel() {
     final abort = _abort;
     if (abort != null && !abort.isCompleted) abort.complete();
@@ -52,6 +70,7 @@ class DeepSeekService {
   /// 单次请求最长等待时间（流式请求是「首包 + 每个数据块」的超时）
   static const Duration timeout = Duration(seconds: 90);
 
+  @override
   void dispose() {
     cancel();
     _client.close();
@@ -76,23 +95,14 @@ class DeepSeekService {
     return uri;
   }
 
-  static bool supportsImages(String model) =>
-      model == 'deepseek-flash' ||
-      model == 'deepseek-v4-flash' ||
-      model == 'deepseek-v4-flash-vision-exp';
+  static bool supportsImages(String model) => modelSupportsImages(model);
 
   static void validateImages(String model, List<ChatMessage> history) {
     if (!supportsImages(model) &&
         history.any((m) => !m.error && m.attachments.any((a) => a.isImage))) {
-      throw DeepSeekException('这个对话包含图片，请切换到 deepseek-flash 后发送，或新建纯文字对话。');
+      throw DeepSeekException('这个对话包含图片，请切换到支持图片的模型后发送，或新建纯文字对话。');
     }
   }
-
-  Map<String, String> _headers(String apiKey) => <String, String>{
-    'Content-Type': 'application/json; charset=utf-8',
-    'Accept': 'text/event-stream, application/json',
-    'Authorization': 'Bearer ${apiKey.trim()}',
-  };
 
   /// 把 UI 上的消息整理成 API 需要的 `messages`。
   ///
@@ -146,18 +156,6 @@ class DeepSeekService {
     return result;
   }
 
-  Map<String, dynamic> _body({
-    required String model,
-    required List<Map<String, dynamic>> messages,
-    required bool stream,
-    required double temperature,
-  }) => <String, dynamic>{
-    'model': model,
-    'messages': messages,
-    'stream': stream,
-    'temperature': temperature,
-  };
-
   // --------------------------------------------------------------- 流式请求
 
   /// 边收边吐的流式接口。
@@ -168,10 +166,14 @@ class DeepSeekService {
   ///   setState(() => text += chunk.text);
   /// }
   /// ```
+  @override
   Stream<ChatChunk> streamChat({
     required AppSettings settings,
     required List<ChatMessage> history,
   }) async* {
+    if (settings.model.trim().isEmpty || settings.baseUrl.trim().isEmpty) {
+      throw DeepSeekException('请先填写模型名称和 API 接口地址。');
+    }
     cancel();
     final abort = Completer<void>();
     _abort = abort;
@@ -180,8 +182,11 @@ class DeepSeekService {
       throw DeepSeekException('还没有填写 API Key，请先到「设置」里填写。');
     }
 
-    final Uri uri = endpoint(settings.baseUrl);
-    validateImages(settings.model, history);
+    final Uri uri = ApiProtocol.endpoint(settings, stream: true);
+    if (!settings.supportsImages &&
+        history.any((m) => !m.error && m.attachments.any((a) => a.isImage))) {
+      throw DeepSeekException('当前模型未启用图片支持，请更换模型或在设置中确认图片能力。');
+    }
     final List<Map<String, dynamic>> messages = await buildApiMessages(
       history,
       systemPrompt: settings.systemPrompt,
@@ -193,15 +198,8 @@ class DeepSeekService {
     if (abort.isCompleted) return;
     final http.Request request =
         http.AbortableRequest('POST', uri, abortTrigger: abort.future)
-          ..headers.addAll(_headers(apiKey))
-          ..body = jsonEncode(
-            _body(
-              model: settings.model,
-              messages: messages,
-              stream: true,
-              temperature: settings.temperature,
-            ),
-          );
+          ..headers.addAll(ApiProtocol.headers(settings))
+          ..body = jsonEncode(ApiProtocol.body(settings, messages, true));
     if (request.bodyBytes.length > 24 * 1024 * 1024) {
       throw DeepSeekException('对话附件过多，请新建对话或减少图片后再发送。');
     }
@@ -224,6 +222,16 @@ class DeepSeekService {
     if ((response.headers['content-type'] ?? '').contains('application/json')) {
       final raw = await response.stream.bytesToString().timeout(timeout);
       final json = jsonDecode(raw) as Map<String, dynamic>;
+      if (settings.protocol != 'openai') {
+        for (final (text, thinking, done) in ApiProtocol.decode(
+          settings.protocol,
+          json,
+          full: true,
+        )) {
+          yield ChatChunk(text, thinking: thinking, done: done);
+        }
+        return;
+      }
       final choices = json['choices'] as List<dynamic>?;
       if (choices == null || choices.isEmpty) {
         throw DeepSeekException('服务端没有返回有效回答，请检查接口配置。');
@@ -275,6 +283,15 @@ class DeepSeekService {
         throw DeepSeekException('服务端返回错误：${error['message']}');
       }
 
+      if (settings.protocol != 'openai') {
+        for (final (text, thinking, done) in ApiProtocol.decode(
+          settings.protocol,
+          json,
+        )) {
+          yield ChatChunk(text, thinking: thinking, done: done);
+        }
+        continue;
+      }
       final Object? choices = json['choices'];
       if (choices is! List || choices.isEmpty) continue;
       final Object? first = choices.first;
@@ -304,10 +321,14 @@ class DeepSeekService {
   // ------------------------------------------------------------- 非流式请求
 
   /// 备用方案：一次性拿完整答案。
+  @override
   Future<String> completeChat({
     required AppSettings settings,
     required List<ChatMessage> history,
   }) async {
+    if (settings.model.trim().isEmpty || settings.baseUrl.trim().isEmpty) {
+      throw DeepSeekException('请先填写模型名称和 API 接口地址。');
+    }
     cancel();
     final abort = Completer<void>();
     _abort = abort;
@@ -321,22 +342,18 @@ class DeepSeekService {
       systemPrompt: settings.systemPrompt,
     );
 
-    validateImages(settings.model, history);
+    if (!settings.supportsImages &&
+        history.any((m) => !m.error && m.attachments.any((a) => a.isImage))) {
+      throw DeepSeekException('当前模型未启用图片支持，请更换模型或在设置中确认图片能力。');
+    }
     final request =
         http.AbortableRequest(
             'POST',
-            endpoint(settings.baseUrl),
+            ApiProtocol.endpoint(settings),
             abortTrigger: abort.future,
           )
-          ..headers.addAll(_headers(apiKey))
-          ..body = jsonEncode(
-            _body(
-              model: settings.model,
-              messages: apiMessages,
-              stream: false,
-              temperature: settings.temperature,
-            ),
-          );
+          ..headers.addAll(ApiProtocol.headers(settings))
+          ..body = jsonEncode(ApiProtocol.body(settings, apiMessages, false));
     final response = await http.Response.fromStream(
       await _client.send(request).timeout(timeout),
     ).timeout(timeout);
@@ -351,6 +368,13 @@ class DeepSeekService {
 
     try {
       final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
+      if (settings.protocol != 'openai') {
+        return ApiProtocol.decode(
+          settings.protocol,
+          json,
+          full: true,
+        ).where((part) => !part.$2).map((part) => part.$1).join();
+      }
       final List<dynamic> choices = json['choices'] as List<dynamic>;
       final Map<String, dynamic> message =
           (choices.first as Map<String, dynamic>)['message']
@@ -384,19 +408,23 @@ class DeepSeekService {
       404 => '接口地址不存在（404），请检查 Base URL',
       422 => '请求参数不合法（422）',
       429 => '请求过于频繁或被限流（429），稍后再试',
-      500 || 502 || 503 || 504 => 'DeepSeek 服务暂时不可用（$statusCode），请稍后重试',
+      500 || 502 || 503 || 504 => '模型服务暂时不可用（$statusCode），请稍后重试',
       _ => '请求失败（$statusCode）',
     };
     return detail.isEmpty ? prefix : '$prefix：$detail';
   }
 
   /// 连通性自检：设置页的「测试连接」按钮用。
+  @override
   Future<String> testConnection(AppSettings settings) async {
     final ChatMessage probe = ChatMessage.user('你好');
     final String reply = await completeChat(
       settings: settings,
       history: <ChatMessage>[probe],
     );
-    return reply.isEmpty ? '（服务端返回了空内容）' : reply;
+    if (reply.trim().isEmpty) {
+      throw DeepSeekException('服务端没有返回有效回答，请检查模型与接口配置。');
+    }
+    return reply;
   }
 }

@@ -37,7 +37,7 @@ class MainActivity : FlutterActivity() {
                                 val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                                     addCategory(Intent.CATEGORY_OPENABLE)
                                     type = "application/json"
-                                    putExtra(Intent.EXTRA_TITLE, "DeepSeek-history-${System.currentTimeMillis()}.json")
+                                    putExtra(Intent.EXTRA_TITLE, "Wanxiang-history-${System.currentTimeMillis()}.json")
                                 }
                                 startActivityForResult(intent, 117)
                             }

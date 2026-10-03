@@ -1,3 +1,6 @@
+import 'package:deepseek_chat/models/provider_catalog.dart';
+import 'package:deepseek_chat/services/api_protocol.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -26,7 +29,9 @@ class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _promptController;
   late final TextEditingController _customController;
 
+  late AppSettings _draft;
   late String _model;
+  bool? _imageSupport;
   late String _themeMode;
   late double _temperature;
 
@@ -43,7 +48,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<bool> _confirmDestination(AppSettings next) async {
     Uri destination;
     try {
-      destination = DeepSeekService.endpoint(next.baseUrl);
+      destination = ApiProtocol.endpoint(next);
     } on DeepSeekException catch (e) {
       _toast(e.message, isError: true);
       return false;
@@ -54,7 +59,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final previous = context.read<AppSettingsProvider>().settings;
     Uri? old;
     try {
-      old = DeepSeekService.endpoint(previous.baseUrl);
+      old = ApiProtocol.endpoint(previous);
     } catch (_) {}
     if (destination.origin != old?.origin && next.hasApiKey) {
       return await showDialog<bool>(
@@ -98,11 +103,13 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     final AppSettings s = context.read<AppSettingsProvider>().settings;
+    _draft = s;
+    _imageSupport = s.imageSupport;
     _keyController = TextEditingController(text: s.apiKey);
     _baseUrlController = TextEditingController(text: s.baseUrl);
     _promptController = TextEditingController(text: s.systemPrompt);
     _model = s.model;
-    _isCustomModel = !AppSettings.availableModels.contains(_model);
+    _isCustomModel = !_draft.preset.models.contains(_model);
     _customController = TextEditingController(
       text: _isCustomModel ? _model : '',
     );
@@ -119,15 +126,29 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
+  void _switchProvider(String id) {
+    final next = _collect().forProvider(id);
+    setState(() {
+      _draft = next;
+      _imageSupport = next.imageSupport;
+      _keyController.text = next.apiKey;
+      _baseUrlController.text = next.baseUrl;
+      _model = next.model;
+      _temperature = next.temperature;
+      _isCustomModel = !next.preset.models.contains(_model);
+      _customController.text = _isCustomModel ? _model : '';
+    });
+  }
+
   AppSettings _collect() {
-    final AppSettingsProvider provider = context.read<AppSettingsProvider>();
     // 自定义模型名优先：用户既然填了，就用他填的
     final String custom = _customController.text.trim();
     final String model = custom.isNotEmpty && _isCustomModel ? custom : _model;
-    return provider.settings.copyWith(
+    return _draft.copyWith(
+      imageSupport: _imageSupport,
       apiKey: _keyController.text.trim(),
       baseUrl: _baseUrlController.text.trim().isEmpty
-          ? AppSettings.defaultBaseUrl
+          ? _draft.preset.url
           : _baseUrlController.text.trim(),
       model: model,
       systemPrompt: _promptController.text.trim(),
@@ -141,14 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final AppSettings next = _collect();
     if (!await _confirmDestination(next) || !mounted) return;
     try {
-      await provider.update(
-        apiKey: next.apiKey,
-        baseUrl: next.baseUrl,
-        model: next.model,
-        systemPrompt: next.systemPrompt,
-        temperature: next.temperature,
-        themeMode: next.themeMode,
-      );
+      await provider.replace(next);
     } catch (_) {
       if (mounted) _toast('设置暂时未能保存，请重试。', isError: true);
       return;
@@ -172,12 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final DeepSeekService service = DeepSeekService();
     try {
       // 先保存，这样测试用的就是当前填写的配置
-      await context.read<AppSettingsProvider>().update(
-        apiKey: candidate.apiKey,
-        baseUrl: candidate.baseUrl,
-        model: candidate.model,
-        temperature: candidate.temperature,
-      );
+      await context.read<AppSettingsProvider>().replace(candidate);
       final String reply = await service.testConnection(candidate);
       if (!mounted) return;
       _toast('连接成功：${_short(reply)}');
@@ -200,7 +209,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// 打开 DeepSeek 开放平台（申请 API Key）——逻辑统一在 link_actions.dart
-  Future<void> _openPlatform() => openDeepSeekPlatform(context);
+  Future<void> _openPlatform() async {
+    if (_draft.preset.platform.isNotEmpty) {
+      await openExternalUrl(context, _draft.preset.platform);
+    }
+  }
 
   void _toast(String message, {bool isError = false}) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -242,6 +255,10 @@ class _SettingsPageState extends State<SettingsPage> {
     await provider.resetToDefaults();
     if (!mounted) return;
     setState(() {
+      _draft = provider.settings;
+      _imageSupport = null;
+      _customController.clear();
+      _isCustomModel = false;
       _keyController.clear();
       _baseUrlController.text = AppSettings.defaultBaseUrl;
       _promptController.clear();
@@ -280,6 +297,22 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(warning),
             ),
+          DropdownButtonFormField<String>(
+            key: ValueKey('provider-${_draft.providerId}'),
+            initialValue: _draft.providerId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: '服务商'),
+            items: [
+              for (final p in providerCatalog)
+                DropdownMenuItem(value: p.id, child: Text(p.name)),
+            ],
+            onChanged: _testing
+                ? null
+                : (id) {
+                    if (id != null) _switchProvider(id);
+                  },
+          ),
+          const SizedBox(height: 16),
           _sectionTitle('API 配置'),
           _card(
             children: <Widget>[
@@ -290,7 +323,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 enableSuggestions: false,
                 keyboardType: TextInputType.visiblePassword,
                 decoration: InputDecoration(
-                  labelText: 'DeepSeek API Key',
+                  labelText: '${_draft.preset.name} API Key',
                   hintText: 'sk-xxxxxxxxxxxxxxxx',
                   prefixIcon: const Icon(Icons.vpn_key_outlined),
                   suffixIcon: Row(
@@ -338,7 +371,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '还没有 Key？点这里打开 DeepSeek 开放平台申请',
+                          _draft.preset.platform.isEmpty
+                              ? '请向你的服务商申请 API Key'
+                              : '打开 ${_draft.preset.name} 开放平台申请',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.primary,
                             decoration: TextDecoration.underline,
@@ -361,6 +396,38 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            key: ValueKey('protocol-${_draft.providerId}-${_draft.protocol}'),
+            initialValue: _draft.protocol,
+            decoration: const InputDecoration(labelText: '接口协议'),
+            items: const [
+              DropdownMenuItem(
+                value: 'openai',
+                child: Text('OpenAI 兼容 Chat Completions'),
+              ),
+              DropdownMenuItem(
+                value: 'responses',
+                child: Text('OpenAI Responses'),
+              ),
+              DropdownMenuItem(
+                value: 'anthropic',
+                child: Text('Anthropic Messages'),
+              ),
+              DropdownMenuItem(value: 'gemini', child: Text('Google Gemini')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _draft = _draft.copyWith(protocol: value));
+              }
+            },
+          ),
+          SwitchListTile(
+            title: const Text('此模型支持图片'),
+            subtitle: const Text('自定义模型请根据服务商说明设置'),
+            value: _imageSupport ?? modelSupportsImages(_model),
+            onChanged: (value) => setState(() => _imageSupport = value),
+          ),
           _sectionTitle('模型与接口'),
           _card(
             children: <Widget>[
@@ -369,7 +436,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 // Flutter 3.32+ 推荐用 initialValue，旧版本仍是 value；
                 // 这里用 value 以同时兼容 3.22 ~ 3.35。
                 // ignore: deprecated_member_use
-                value: _model,
+                key: ValueKey('${_draft.providerId}:$_model'),
+                initialValue: _model.isEmpty ? _customModelSentinel : _model,
                 decoration: const InputDecoration(
                   labelText: '模型',
                   prefixIcon: Icon(Icons.memory_outlined),
@@ -377,7 +445,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 // 如果当前模型是自定义的（不在预置列表里），临时补一项进去，
                 // 否则 DropdownButtonFormField 会因为 value 不在 items 里而断言失败
                 items: <DropdownMenuItem<String>>[
-                  for (final String m in AppSettings.availableModels)
+                  for (final String m in _draft.modelChoices)
                     DropdownMenuItem<String>(
                       value: m,
                       child: Text(
@@ -389,10 +457,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _customModelSentinel,
                     child: Text('自定义…'),
                   ),
-                  if (!AppSettings.availableModels.contains(_model) &&
+                  if (_model.isNotEmpty &&
+                      !_draft.modelChoices.contains(_model) &&
                       _model != _customModelSentinel)
                     DropdownMenuItem<String>(
-                      value: _model,
+                      key: ValueKey('${_draft.providerId}:$_model'),
+                      value: _model.isEmpty ? _customModelSentinel : _model,
                       child: Text('自定义：$_model'),
                     ),
                 ],
@@ -401,14 +471,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     if (value == _customModelSentinel) {
                       _model = _customController.text.trim().isEmpty
-                          ? AppSettings.defaultModel
+                          ? ''
                           : _customController.text.trim();
                     } else {
                       _model = value;
                     }
-                    _isCustomModel = !AppSettings.availableModels.contains(
-                      _model,
-                    );
+                    _imageSupport = null;
+                    _isCustomModel = !_draft.preset.models.contains(_model);
                     if (_isCustomModel) _customController.text = _model;
                   });
                 },
@@ -428,7 +497,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   setState(() {
                     if (t.isNotEmpty) {
                       _model = t;
-                      _isCustomModel = !AppSettings.availableModels.contains(t);
+                      _imageSupport = null;
+                      _isCustomModel = !_draft.preset.models.contains(t);
                     } else {
                       _isCustomModel = false;
                     }
@@ -439,7 +509,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Text(
                 '当前使用：$_model'
                 '${_isCustomModel ? '（自定义）' : ''}\n'
-                '模型名以官方文档为准：api-docs.deepseek.com → 模型 & 价格。'
+                '预置名称仅供选择，实际可用模型以服务商账号为准。'
                 '官方若改版，直接在上面的输入框填写新的模型名即可。',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -459,7 +529,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                '接收方：${_baseUrlController.text.trim().isEmpty ? AppSettings.defaultBaseUrl : _baseUrlController.text.trim()}',
+                '接收方：${_baseUrlController.text.trim().isEmpty ? _draft.preset.url : _baseUrlController.text.trim()}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -618,7 +688,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.info_outline),
-                title: const Text('关于 DeepSeek 助手'),
+                title: const Text('关于 万象'),
                 subtitle: const Text('版本、创作者与相关链接'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () =>

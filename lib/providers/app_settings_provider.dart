@@ -40,6 +40,20 @@ class AppSettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> replace(AppSettings next) async {
+    await _storage.saveSettings(next);
+    _settings = next;
+    initializationWarning = null;
+    notifyListeners();
+  }
+
+  void restoreRoute(String id, String? model) {
+    _settings = _settings.forProvider(id).copyWith(model: model);
+    notifyListeners();
+  }
+
+  Future<void> selectProvider(String id) => replace(_settings.forProvider(id));
+
   Future<void> update({
     String? apiKey,
     String? baseUrl,
@@ -63,12 +77,5 @@ class AppSettingsProvider extends ChangeNotifier {
   }
 
   /// 一键恢复默认（会同时清空 API Key）
-  Future<void> resetToDefaults() => update(
-    apiKey: '',
-    baseUrl: AppSettings.defaultBaseUrl,
-    model: AppSettings.defaultModel,
-    systemPrompt: '',
-    temperature: 1.0,
-    themeMode: 'system',
-  );
+  Future<void> resetToDefaults() => replace(AppSettings());
 }
