@@ -1,0 +1,133 @@
+<a id="top"></a>
+
+<div align="center">
+  <img src="assets/branding/icon.png" alt="万象 Logo" width="88">
+  <h1>万象 · Wanxiang</h1>
+  <p><a href="README.md">English</a> | <strong>简体中文</strong></p>
+  <p><strong>汇聚多种 AI，让每一次对话都有更多可能。</strong></p>
+  <p>开源 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
+  <p>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.2.0/wanxiang-v1.2.0.apk">下载 APK</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/version-v1.2.0-1677FF" alt="版本 v1.2.0"></a>
+    <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 及以上">
+    <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="使用 Flutter 构建">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-8B5CF6" alt="MIT 许可证"></a>
+  </p>
+  <p>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0">v1.2.0 发布页</a> ·
+    <a href="#preview">界面预览</a> ·
+    <a href="#quick-start">开始使用</a> ·
+    <a href="#providers">服务商</a> ·
+    <a href="docs/1.2.0-更新说明.md">更新说明</a>
+  </p>
+</div>
+
+<p align="center">
+  <img src="docs/images/wanxiang-banner.png" width="100%" alt="万象：让每一次对话都有更多可能，展示浅色与深色聊天界面">
+</p>
+
+## 项目简介
+
+**万象**是一款运行在 Android 上的开源 AI 聊天助手。它将 DeepSeek、OpenAI、Kimi、Qwen 等服务商放进同一个应用，让你按照问题和习惯选择模型，用文字、图片和文本附件展开对话。
+
+从梳理一个想法、讨论一段代码，到追问图片中的细节，万象希望让这些日常对话更顺手：配置一次，随时切换，重要的讨论留在自己的会话记录里。
+
+## 核心特点
+
+- **自由选择模型**：八家预置服务商与自定义接口，按需选择账号可用的模型。
+- **让对话自然延续**：流式回复、多会话历史，重新打开会话时恢复对应服务商和模型。
+- **不止输入文字**：发送图片与纯文本附件，让支持相应能力的模型理解更多上下文。
+- **适合长时间阅读**：Markdown 排版，搭配浅色与深色界面。
+- **掌握自己的配置**：使用自己的 API Key；Android 密钥加密保存在本机。
+
+<a id="preview"></a>
+
+## 看见万象
+
+<table>
+  <tr>
+    <td align="center"><strong>浅色对话</strong></td>
+    <td align="center"><strong>深色对话</strong></td>
+    <td align="center"><strong>服务商设置</strong></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/chat-light.png" alt="万象浅色聊天界面" width="260"></td>
+    <td><img src="docs/screenshots/chat-dark.png" alt="万象深色聊天界面" width="260"></td>
+    <td><img src="docs/screenshots/settings.png" alt="万象服务商与模型设置" width="260"></td>
+  </tr>
+</table>
+
+<sub>以上为 Flutter 测试渲染的模拟会话截图，用于展示布局，不是真机实拍或服务商线上回复。</sub>
+
+<a id="providers"></a>
+
+## 连接你常用的服务商
+
+| 服务商 | 默认接入协议 | 配置方式 |
+| --- | --- | --- |
+| DeepSeek | OpenAI 兼容 Chat Completions | DeepSeek API Key 与账号可用模型 |
+| OpenAI | OpenAI Responses | OpenAI API Key 与账号可用模型 |
+| Kimi · Moonshot | OpenAI 兼容 Chat Completions | Moonshot API Key 与账号可用模型 |
+| Qwen · 通义千问 | OpenAI 兼容 Chat Completions | DashScope API Key；默认中国内地接口 |
+| Anthropic · Claude | Anthropic Messages | Anthropic API Key 与账号可用模型 |
+| Google · Gemini | Google Gemini | Gemini API Key 与账号可用模型 |
+| xAI · Grok | OpenAI 兼容 Chat Completions | xAI API Key 与账号可用模型 |
+| GLM · 智谱 | OpenAI 兼容 Chat Completions | 智谱 API Key 与账号可用模型 |
+| 自定义 | 可选择上述四类协议 | 填写 Base URL、API Key 和模型 ID |
+
+预置模型仅用于方便配置，不代表你的账号已经获得调用权限。请以服务商当前开放的模型、区域和账号权限为准；可在设置中修改模型 ID、接口地址和图片能力。兼容接口的具体行为可能因服务商而异。
+
+<a id="quick-start"></a>
+
+## 开始第一段对话
+
+1. 前往 [v1.2.0 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.2.0)查看版本说明与可用附件，也可以按下文从源码构建 APK。
+2. 打开万象的**设置**，选择服务商并填写自己的 API Key。
+3. 选择模型，或填写账号当前可用的自定义模型 ID；需要时调整 Base URL。
+4. 保存配置，可使用**测试连接**检查接口，然后回到聊天页开始对话。
+5. 在聊天页顶部切换服务商和模型。发送图片前，请确认所选模型具备视觉能力。
+
+测试连接和聊天均会发出真实 API 请求，可能产生用量费用。API 资格、区域限制及计费由服务商管理；万象与这些服务商没有隶属关系。
+
+<details>
+<summary><strong>从 DeepSeek 助手升级到万象</strong></summary>
+
+v1.2.0 的构建号为 **11**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
+
+内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.2.0 更新说明](docs/1.2.0-更新说明.md)。
+
+</details>
+
+## 你的密钥，你的数据
+
+| 数据 | 保存或发送方式 |
+| --- | --- |
+| API Key | Android 使用 Keystore + AES-GCM 加密保存；普通设置不包含密钥。 |
+| 聊天记录 | 保存在应用私有目录；聊天内容并非全部加密。 |
+| 模型请求 | 发送到你配置的接口，包含认证信息、当前会话上下文及本次提交的附件内容。 |
+| 聊天导出 | 包含聊天文字和附件名称，不包含 API Key、图片文件或本机图片路径。 |
+| 系统备份 | 已排除应用数据；重要聊天文字请主动导出。 |
+
+使用自定义地址前，请确认你信任该接口的运营方。提交问题反馈时，请去除密钥、私人聊天和其他敏感内容。
+
+## 开发与贡献
+
+本项目使用 Flutter + Provider。构建环境、离线打包、签名兼容、协议扩展及测试范围，见 [开发与构建指南](docs/DEVELOPMENT.zh-CN.md)。
+
+## 项目进展
+
+- 当前重点：完善 Android 的多模型体验，补充真实账号与真机升级验证。
+- 后续方向：逐步探索桌面端，目前专注 Android。
+- 本版边界：不包含联网搜索、工具执行、语音或 PDF / Word 文档解析。
+
+## 参与万象
+
+欢迎通过 [Issues](https://github.com/tingwu-h/wanxiang-chat-app/issues) 反馈问题或提出建议，也欢迎提交 Pull Request。反馈时请提供应用版本、Android 版本、服务商、模型 ID 与可复现步骤；提交代码前运行静态分析及相关测试。
+
+Logo 由项目所有者提供，品牌素材位于 [assets/branding](assets/branding)。项目采用 [MIT License](LICENSE)。
+
+<div align="center">
+  <br>
+  <strong>万象，让不同模型在这里相遇。</strong><br>
+  <a href="#top">回到顶部 ↑</a>
+</div>
