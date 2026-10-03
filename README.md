@@ -109,7 +109,7 @@ Model labels suggest uses such as coding, reasoning, writing, or image understan
 
 ## A clearer chat layout
 
-The current conversation title appears at the top. The compact rounded composer contains the text input and a model selector beneath it; the model menu lists only your selected provider’s models. Provider labels offer guidance for coding, reasoning, writing, long text and vision. Choose your interface language from a bottom sheet in Appearance. Rounded menus keep actions consistent, and saving settings shows a brief confirmation. With a custom background, the top and bottom surfaces retain a soft tint to keep text and controls readable.
+The current conversation title appears at the top. The compact rounded composer contains the text input and a model selector beneath it. The model menu lists only your selected provider’s models in a small, scrollable window. Each model has its own rounded card with strengths below its name; a colored border and check mark identify your current choice. Provider labels offer guidance for coding, reasoning, writing, long text and vision. Choose your interface language from a bottom sheet in Appearance. Rounded menus keep actions consistent, and saving settings shows a brief confirmation. With a custom background, the top and bottom surfaces retain a soft tint to keep text and controls readable.
 
 ## Appearance and image tools
 

@@ -178,21 +178,21 @@ void main() {
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 默认 deepseek-flash，顶栏胶囊显示 flash
+    // 默认 deepseek-flash，底部选择器显示 flash
     expect(find.text('DeepSeek · flash'), findsOneWidget);
     expect(h.settings.model, 'deepseek-flash');
 
     // 点开模型菜单，选 deepseek-v4-pro
     await tester.tap(find.text('DeepSeek · flash'));
     await tester.pumpAndSettle();
-    expect(find.text('deepseek-v4-pro（强，复杂推理）'), findsOneWidget);
+    expect(find.text('deepseek-v4-pro'), findsOneWidget);
     expect(find.text('OpenAI · GPT'), findsNothing);
     expect(find.text('Anthropic · Claude'), findsNothing);
 
-    await tester.tap(find.text('deepseek-v4-pro（强，复杂推理）'));
+    await tester.tap(find.text('deepseek-v4-pro'));
     await tester.pumpAndSettle();
 
-    // 顶栏胶囊更新，且已持久化到设置
+    // 底部选择器更新，且已持久化到设置
     expect(find.text('DeepSeek · v4-pro'), findsOneWidget);
     expect(h.settings.model, 'deepseek-v4-pro');
   });
@@ -342,6 +342,70 @@ void main() {
       await tester.tap(find.byTooltip('切换模型'));
       await tester.pumpAndSettle();
       expect(find.text('a-very-long-custom-model-name'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'compact model menu scrolls both ways and selects offscreen models',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewInsets);
+      final h = await _buildHarness();
+      for (var i = 0; i < 10; i++) {
+        await h.settings.update(model: 'custom-model-$i');
+      }
+      await tester.pumpWidget(h.app);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('切换模型'));
+      await tester.pumpAndSettle();
+      final scroll = find.byType(SingleChildScrollView).last;
+      final scrollable = find.descendant(
+        of: scroll,
+        matching: find.byType(Scrollable),
+      );
+      expect(tester.getSize(scroll).height, lessThanOrEqualTo(240));
+      expect(tester.getTopLeft(scroll).dy, greaterThan(400));
+      final last = find.text('custom-model-9');
+      expect(last.hitTestable(), findsOneWidget);
+      final first = find.byWidgetPredicate(
+        (w) => w is PopupMenuItem<String> && w.value == 'deepseek-flash',
+      );
+      await tester.scrollUntilVisible(first, -160, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      expect(first.hitTestable(), findsOneWidget);
+      expect(
+        tester.getTopLeft(first).dy,
+        inInclusiveRange(
+          tester.getTopLeft(scroll).dy,
+          tester.getTopLeft(scroll).dy + 8,
+        ),
+      );
+      await tester.scrollUntilVisible(last, 160, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      await tester.tap(last);
+      await tester.pumpAndSettle();
+      expect(h.settings.model, 'custom-model-9');
+      await tester.tap(find.byTooltip('切换模型'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(first, -160, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      await tester.tap(first);
+      await tester.pumpAndSettle();
+      expect(h.settings.model, 'deepseek-flash');
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      tester.view.padding = const FakeViewPadding(top: 24);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('切换模型'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(scroll).height, lessThan(200));
       expect(tester.takeException(), isNull);
     },
   );

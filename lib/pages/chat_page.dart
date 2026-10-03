@@ -445,80 +445,141 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final String current = provider.model;
     // Saved custom models belong to the selected provider's profile.
     final models = provider.settings.modelChoices;
-    return PopupMenuButton<String>(
-      clipBehavior: Clip.antiAlias,
-      key: const ValueKey('chat-model-selector'),
-      enabled: !chat.isLoading,
-      tooltip: tr(context, '切换模型'),
-      initialValue: current,
-      onSelected: (String value) async {
-        try {
-          if (value == current) return;
-          await provider.update(model: value);
-          await chat.bindModel(provider.settings);
-        } catch (_) {
-          if (mounted) _showSnack(tr(context, '配置未能保存，请重试'));
-          return;
-        }
-        if (!mounted) return;
-        _showSnack(tr(context, '已切换到 {model}', {'model': provider.model}));
-      },
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        for (final String m in models.where((m) => m.isNotEmpty))
-          PopupMenuItem<String>(
-            value: m,
-            child: ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                m == current
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                size: 20,
-                color: m == current
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-              ),
-              title: Text(AppSettings.modelLabel(m)),
-              subtitle: Text(
-                modelInfo(
-                  provider.settings.providerId,
-                  m,
-                ).tags.map((tag) => tr(context, tag)).join(' · '),
-              ),
-            ),
-          ),
-      ],
-      child: Semantics(
-        button: true,
-        label: tr(context, '当前模型：{model}', {
-          'model': '${provider.settings.preset.name}, $current',
-        }),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 40, maxWidth: 240),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  '${provider.settings.preset.name.split(' · ').first} · ${AppSettings.modelShortName(current)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: chat.isLoading
-                        ? Theme.of(context).disabledColor
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+    final media = MediaQuery.of(context);
+    final availableHeight =
+        media.size.height - media.padding.vertical - media.viewInsets.bottom;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Theme(
+      // The selected model has its own rounded card highlight.
+      data: theme.copyWith(highlightColor: Colors.transparent),
+      child: PopupMenuButton<String>(
+        clipBehavior: Clip.antiAlias,
+        key: const ValueKey('chat-model-selector'),
+        // Show a few models at a time; the popup scrolls the remaining choices.
+        constraints: BoxConstraints(
+          minWidth: 112,
+          maxWidth: 280,
+          maxHeight: (availableHeight * .36).clamp(96.0, 216.0),
+        ),
+        menuPadding: const EdgeInsets.symmetric(vertical: 4),
+        enabled: !chat.isLoading,
+        tooltip: tr(context, '切换模型'),
+        initialValue: current,
+        onSelected: (String value) async {
+          try {
+            if (value == current) return;
+            await provider.update(model: value);
+            await chat.bindModel(provider.settings);
+          } catch (_) {
+            if (mounted) _showSnack(tr(context, '配置未能保存，请重试'));
+            return;
+          }
+          if (!mounted) return;
+          _showSnack(tr(context, '已切换到 {model}', {'model': provider.model}));
+        },
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+          for (final String m in models.where((m) => m.isNotEmpty))
+            PopupMenuItem<String>(
+              value: m,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              child: Semantics(
+                selected: m == current,
+                child: Container(
+                  key: ValueKey('model-option-$m'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: m == current
+                        ? scheme.primaryContainer.withValues(alpha: .55)
+                        : scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: m == current
+                          ? scheme.primary.withValues(alpha: .65)
+                          : scheme.outlineVariant.withValues(alpha: .5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        m == current
+                            ? Icons.check_circle_rounded
+                            : Icons.circle_outlined,
+                        size: 18,
+                        color: m == current
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              m,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: m == current
+                                    ? scheme.primary
+                                    : scheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              modelInfo(
+                                provider.settings.providerId,
+                                m,
+                              ).tags.map((tag) => tr(context, tag)).join(' · '),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.expand_more,
-                size: 16,
-                color: chat.isLoading ? Theme.of(context).disabledColor : null,
-              ),
-            ],
+            ),
+        ],
+        child: Semantics(
+          button: true,
+          label: tr(context, '当前模型：{model}', {
+            'model': '${provider.settings.preset.name}, $current',
+          }),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 40, maxWidth: 240),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    '${provider.settings.preset.name.split(' · ').first} · ${AppSettings.modelShortName(current)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: chat.isLoading
+                          ? Theme.of(context).disabledColor
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.expand_more,
+                  size: 16,
+                  color: chat.isLoading
+                      ? Theme.of(context).disabledColor
+                      : null,
+                ),
+              ],
+            ),
           ),
         ),
       ),
