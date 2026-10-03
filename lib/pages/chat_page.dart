@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:deepseek_chat/pages/image_editor_page.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
@@ -18,6 +19,7 @@ import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
+import 'package:deepseek_chat/theme/app_theme.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 主页面：会话标题与操作、消息列表、输入框及当前服务商模型选择。
@@ -265,6 +267,25 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final ChatProvider chat = context.watch<ChatProvider>();
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
+    final scheme = Theme.of(context).colorScheme;
+    final appearance = settings.settings;
+    final customBackground =
+        appearance.chatBackgroundImage.isNotEmpty ||
+        appearance.chatBackgroundColor.isNotEmpty;
+    final systemStyle =
+        (Theme.of(context).brightness == Brightness.dark
+                ? SystemUiOverlayStyle.light
+                : SystemUiOverlayStyle.dark)
+            .copyWith(
+              // Flutter paints the tinted surfaces behind transparent system bars.
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: customBackground
+                  ? Colors.transparent
+                  : scheme.surface,
+              systemNavigationBarDividerColor: Colors.transparent,
+              systemNavigationBarContrastEnforced: false,
+              systemStatusBarContrastEnforced: false,
+            );
 
     _maybeShowError(chat);
 
@@ -274,120 +295,144 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (!didPop) await _handleBack();
       },
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawer: ConversationDrawer(
-          conversations: chat.conversations,
-          activeId: chat.activeConversationId,
-          onSelect: (String id) async {
-            await _clearPending();
-            await chat.switchConversation(id);
-            if (!mounted) return;
-            final route = chat.activeProviderId;
-            if (route != null) {
-              await settings.replace(
-                settings.settings
-                    .forProvider(route)
-                    .copyWith(model: chat.activeModel),
-              );
-            }
-          },
-          onRename: (String id, String name) =>
-              chat.renameConversation(id, name),
-          onDelete: (String id) => chat.deleteConversation(id),
-          onOpenSettings: _openSettings,
-          onClearAll: () => chat.clearAllConversations(),
-        ),
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: tr(context, '历史对话'),
-            icon: const Icon(Icons.menu),
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-          ),
-          toolbarHeight: 56,
-          titleSpacing: 0,
-          title: Tooltip(
-            message: chat.activeTitle,
-            child: Text(
-              chat.activeTitle == '新对话' ? tr(context, '新对话') : chat.activeTitle,
-              key: const ValueKey('conversation-title'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          actions: <Widget>[
-            PopupMenuButton<String>(
-              tooltip: tr(context, '对话操作'),
-              onSelected: (String value) {
-                if (value == 'new') _newConversation();
-                if (value == 'clear') _confirmClearCurrent();
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: 'new',
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.add_comment_outlined),
-                    title: Text(tr(context, '新建对话')),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: systemStyle,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (customBackground)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Stack(
+                    key: const ValueKey('chat-backdrop'),
+                    fit: StackFit.expand,
+                    children: [
+                      ColoredBox(
+                        color: Color(
+                          int.tryParse(
+                                appearance.chatBackgroundColor,
+                                radix: 16,
+                              ) ??
+                              scheme.surface.toARGB32(),
+                        ),
+                      ),
+                      if (appearance.chatBackgroundImage.isNotEmpty)
+                        Image.file(
+                          File(appearance.chatBackgroundImage),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      if (appearance.chatBackgroundImage.isNotEmpty)
+                        ColoredBox(
+                          color: scheme.surface.withValues(alpha: .25),
+                        ),
+                    ],
                   ),
                 ),
-                PopupMenuItem<String>(
-                  value: 'clear',
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.delete_outline),
-                    title: Text(tr(context, '清空当前对话')),
+              ),
+            Scaffold(
+              backgroundColor: customBackground ? Colors.transparent : null,
+              key: _scaffoldKey,
+              drawer: ConversationDrawer(
+                conversations: chat.conversations,
+                activeId: chat.activeConversationId,
+                onSelect: (String id) async {
+                  await _clearPending();
+                  await chat.switchConversation(id);
+                  if (!mounted) return;
+                  final route = chat.activeProviderId;
+                  if (route != null) {
+                    await settings.replace(
+                      settings.settings
+                          .forProvider(route)
+                          .copyWith(model: chat.activeModel),
+                    );
+                  }
+                },
+                onRename: (String id, String name) =>
+                    chat.renameConversation(id, name),
+                onDelete: (String id) => chat.deleteConversation(id),
+                onOpenSettings: _openSettings,
+                onClearAll: () => chat.clearAllConversations(),
+              ),
+              appBar: AppBar(
+                backgroundColor: customBackground
+                    ? AppTheme.chatChromeColor(scheme)
+                    : null,
+                surfaceTintColor: Colors.transparent,
+                systemOverlayStyle: systemStyle,
+                leading: IconButton(
+                  tooltip: tr(context, '历史对话'),
+                  icon: const Icon(Icons.menu),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+                toolbarHeight: 56,
+                titleSpacing: 0,
+                title: Tooltip(
+                  message: chat.activeTitle,
+                  child: Text(
+                    chat.activeTitle == '新对话'
+                        ? tr(context, '新对话')
+                        : chat.activeTitle,
+                    key: const ValueKey('conversation-title'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
-        body: Column(
-          children: <Widget>[
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(
-                    color: Color(
-                      int.tryParse(
-                            settings.settings.chatBackgroundColor,
-                            radix: 16,
-                          ) ??
-                          Theme.of(context).colorScheme.surface.toARGB32(),
-                    ),
-                  ),
-                  if (settings.settings.chatBackgroundImage.isNotEmpty)
-                    Image.file(
-                      File(settings.settings.chatBackgroundImage),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                    ),
-                  if (settings.settings.chatBackgroundImage.isNotEmpty)
-                    ColoredBox(
-                      color: Theme.of(context).colorScheme.surface
-                          .withValues(alpha: .25),
-                    ),
-                  MessageListView(
-                    messages: chat.messages,
-                    isLoading: chat.isLoading,
+                actions: <Widget>[
+                  PopupMenuButton<String>(
+                    clipBehavior: Clip.antiAlias,
+                    tooltip: tr(context, '对话操作'),
+                    onSelected: (String value) {
+                      if (value == 'new') _newConversation();
+                      if (value == 'clear') _confirmClearCurrent();
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<String>>[
+                          PopupMenuItem<String>(
+                            value: 'new',
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.add_comment_outlined),
+                              title: Text(tr(context, '新建对话')),
+                            ),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'clear',
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.delete_outline),
+                              title: Text(tr(context, '清空当前对话')),
+                            ),
+                          ),
+                        ],
                   ),
                 ],
               ),
-            ),
-            ChatInputBar(
-              modelSelector: _buildModelSelector(settings, chat),
-              isLoading: chat.isLoading,
-              enabled: settings.hasApiKey,
-              attachments: _pending,
-              onSend: _handleSend,
-              onStop: chat.stop,
-              onPickImages: _pickImages,
-              onPickFiles: _pickFiles,
-              onRemoveAttachment: _removePending,
+              body: Column(
+                children: <Widget>[
+                  Expanded(
+                    child: MessageListView(
+                      messages: chat.messages,
+                      isLoading: chat.isLoading,
+                    ),
+                  ),
+                  ChatInputBar(
+                    translucent: customBackground,
+                    modelSelector: _buildModelSelector(settings, chat),
+                    isLoading: chat.isLoading,
+                    enabled: settings.hasApiKey,
+                    attachments: _pending,
+                    onSend: _handleSend,
+                    onStop: chat.stop,
+                    onPickImages: _pickImages,
+                    onPickFiles: _pickFiles,
+                    onRemoveAttachment: _removePending,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -401,6 +446,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     // Saved custom models belong to the selected provider's profile.
     final models = provider.settings.modelChoices;
     return PopupMenuButton<String>(
+      clipBehavior: Clip.antiAlias,
       key: const ValueKey('chat-model-selector'),
       enabled: !chat.isLoading,
       tooltip: tr(context, '切换模型'),
@@ -449,7 +495,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           'model': '${provider.settings.preset.name}, $current',
         }),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48, maxWidth: 240),
+          constraints: const BoxConstraints(minHeight: 40, maxWidth: 240),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             mainAxisSize: MainAxisSize.min,

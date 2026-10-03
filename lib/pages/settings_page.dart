@@ -364,6 +364,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          duration: Duration(seconds: isError ? 4 : 2),
           content: Text(message),
           backgroundColor: isError ? scheme.errorContainer : null,
           showCloseIcon: isError,
@@ -490,7 +491,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ? tr(context, '正在保存…')
                         : _dirty
                         ? tr(context, '有未保存的修改')
-                        : tr(context, '设置已保存'),
+                        : '',
                     style: TextStyle(color: scheme.onSurfaceVariant),
                   ),
                 ),
@@ -523,6 +524,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 '${_draft.preset.name} · ${_keyController.text.trim().isEmpty ? '待配置' : '已填写密钥'}',
                 [
                   DropdownButtonFormField<String>(
+                    borderRadius: BorderRadius.circular(20),
                     key: ValueKey('provider-${_draft.providerId}'),
                     initialValue: _draft.providerId,
                     isExpanded: true,
@@ -650,6 +652,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    borderRadius: BorderRadius.circular(20),
                     key: ValueKey(
                       'model-${_draft.providerId}-$_model-$_isCustomModel',
                     ),
@@ -753,6 +756,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
+                        borderRadius: BorderRadius.circular(20),
                         key: ValueKey(
                           'protocol-${_draft.providerId}-${_draft.protocol}',
                         ),
@@ -1080,33 +1084,38 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           Semantics(
             expanded: open,
-            child: ListTile(
-              key: ValueKey('section-$id'),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 6,
+            child: Material(
+              key: ValueKey('section-header-$id'),
+              type: MaterialType.transparency,
+              clipBehavior: Clip.hardEdge,
+              child: ListTile(
+                key: ValueKey('section-$id'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                leading: Icon(icon, color: scheme.primary),
+                title: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  summary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Icon(open ? Icons.expand_less : Icons.expand_more),
+                onTap: () {
+                  FocusScope.of(context).unfocus();
+                  setState(() {
+                    if (open) {
+                      _expanded.remove(id);
+                    } else {
+                      _expanded.add(id);
+                    }
+                  });
+                },
               ),
-              leading: Icon(icon, color: scheme.primary),
-              title: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                summary,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Icon(open ? Icons.expand_less : Icons.expand_more),
-              onTap: () {
-                FocusScope.of(context).unfocus();
-                setState(() {
-                  if (open) {
-                    _expanded.remove(id);
-                  } else {
-                    _expanded.add(id);
-                  }
-                });
-              },
             ),
           ),
           AnimatedSize(
@@ -1114,7 +1123,7 @@ class _SettingsPageState extends State<SettingsPage> {
             alignment: Alignment.topCenter,
             child: open
                 ? Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: children,

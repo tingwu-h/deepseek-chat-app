@@ -114,6 +114,7 @@ class ConversationDrawer extends StatelessWidget {
                           onLongPress: () =>
                               _showRenameDialog(context, c, onRename: onRename),
                           trailing: PopupMenuButton<String>(
+                            clipBehavior: Clip.antiAlias,
                             tooltip: tr(context, '更多'),
                             icon: const Icon(Icons.more_vert, size: 18),
                             onSelected: (String v) {

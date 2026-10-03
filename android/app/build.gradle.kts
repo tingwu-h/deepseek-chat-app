@@ -20,7 +20,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         // Public hotfix version; Dart pubspec retains its three-part format.
-        versionName = "1.2.2.1"
+        versionName = "1.2.2.2"
     }
 
     buildTypes {

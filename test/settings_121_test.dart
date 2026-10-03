@@ -66,6 +66,30 @@ Finder get keyField => find.widgetWithText(TextField, 'DeepSeek API Key');
 
 void main() {
   testWidgets(
+    'save feedback disappears and category content clears the header',
+    (tester) async {
+      await mount(tester);
+      expect(find.text('设置已保存'), findsNothing);
+      await group(tester, 'model');
+      final header = find.byKey(const ValueKey('section-header-model'));
+      final provider = find.byKey(const ValueKey('provider-deepseek'));
+      expect(
+        tester.getTopLeft(provider).dy - tester.getBottomLeft(header).dy,
+        greaterThanOrEqualTo(12),
+      );
+      expect(tester.widget<Material>(header).clipBehavior, Clip.hardEdge);
+      await tester.enterText(keyField, 'save-test');
+      await tester.pump();
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      expect(find.text('设置已保存'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(find.text('设置已保存'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
     'five collapsed categories fit small screens; theme and edits survive folding',
     (tester) async {
       tester.view.physicalSize = const Size(320, 640);

@@ -7,6 +7,10 @@ class AppTheme {
   /// 万象 Logo 的蓝紫主色
   static const Color seed = Color(0xFF4D6BFE);
 
+  /// Keep wallpaper visible while preserving contrast under system icons.
+  static Color chatChromeColor(ColorScheme scheme) =>
+      scheme.surface.withValues(alpha: .88);
+
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
 
@@ -19,6 +23,27 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      popupMenuTheme: PopupMenuThemeData(
+        color: scheme.surfaceContainer,
+        surfaceTintColor: Colors.transparent,
+        elevation: 4,
+        shadowColor: scheme.shadow.withValues(alpha: .18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        menuPadding: const EdgeInsets.symmetric(vertical: 6),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surfaceContainer,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surfaceContainer,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
       scaffoldBackgroundColor: brightness == Brightness.light
           ? const Color(0xFFF5F7FC)
           : const Color(0xFF111520),
@@ -70,6 +95,7 @@ class AppTheme {
       // Flutter 3.27+ 起 ThemeData.cardTheme 的参数类型是 CardThemeData
       // （旧名 CardTheme 仍存在但已不是参数类型，用它编译会直接报错）。
       cardTheme: CardThemeData(
+        surfaceTintColor: Colors.transparent,
         color: brightness == Brightness.light
             ? Colors.white
             : scheme.surfaceContainerLow,

@@ -359,8 +359,10 @@ void main() {
     }
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
     final storage = StorageService();
     final settings = AppSettingsProvider(storage: storage);
     final chat = ChatProvider(api: DeepSeekService(), storage: storage);
@@ -403,14 +405,72 @@ void main() {
     }
 
     await screenshot('chat-light');
+    final composer = find.byKey(const ValueKey('message-composer'));
+    expect(tester.getSize(composer).height, lessThanOrEqualTo(112));
+    Future<void> captureMenu(String tooltip, String name) async {
+      await tester.tap(find.byTooltip(tooltip));
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Material &&
+              w.clipBehavior == Clip.antiAlias &&
+              w.shape is RoundedRectangleBorder &&
+              (w.shape! as RoundedRectangleBorder).borderRadius ==
+                  BorderRadius.circular(20),
+        ),
+        findsWidgets,
+      );
+      await screenshot(name);
+      Navigator.of(tester.element(find.byType(PopupMenuItem<String>).first))
+          .pop();
+      await tester.pumpAndSettle();
+    }
+
+    await captureMenu('对话操作', 'chat-menu');
+    await captureMenu('添加图片或文件', 'attachment-menu');
+    await captureMenu('切换模型', 'model-menu');
     await settings.update(themeMode: 'dark');
     await tester.pumpAndSettle();
     await screenshot('chat-dark');
+    // The wallpaper must affect both surfaces without removing their tint.
+    await settings.updateAppearance(color: 'ff227799');
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<AppBar>(find.byType(AppBar)).backgroundColor!.a,
+      closeTo(.88, .01),
+    );
+    final decoration =
+        tester.widget<Container>(composer).decoration! as BoxDecoration;
+    expect(decoration.color!.a, closeTo(.55, .01));
+    final bottomSurface = find.byKey(const ValueKey('chat-bottom-surface'));
+    expect(tester.widget<ColoredBox>(bottomSurface).color.a, closeTo(.88, .01));
+    expect(tester.getBottomLeft(bottomSurface).dy, 844);
+    final backdrop = find.byKey(const ValueKey('chat-backdrop'));
+    expect(
+      tester.getSize(backdrop),
+      tester.view.physicalSize / tester.view.devicePixelRatio,
+    );
+    await screenshot('chat-background');
+    await settings.update(themeMode: 'light');
+    await tester.pumpAndSettle();
+    await screenshot('chat-background-light');
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    tester.view.padding = const FakeViewPadding(top: 24);
+    await tester.pumpAndSettle();
+    expect(tester.getBottomLeft(bottomSurface).dy, 544);
+    expect(tester.getBottomLeft(composer).dy, lessThanOrEqualTo(544));
+    expect(tester.takeException(), isNull);
+    tester.view.resetViewInsets();
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    await settings.updateAppearance(color: '');
+    await tester.pumpAndSettle();
     await settings.update(themeMode: 'light');
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     await screenshot('history');
+    await captureMenu('更多', 'history-menu');
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
     await screenshot('settings');

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:deepseek_chat/models/chat_attachment.dart';
+import 'package:deepseek_chat/theme/app_theme.dart';
 
 /// 底部输入栏：附件预览 + 多行输入框 + 发送 / 停止按钮。
 class ChatInputBar extends StatefulWidget {
@@ -20,6 +21,7 @@ class ChatInputBar extends StatefulWidget {
     required this.enabled,
     this.attachments = const <ChatAttachment>[],
     this.modelSelector,
+    this.translucent = false,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -43,6 +45,7 @@ class ChatInputBar extends StatefulWidget {
   /// 当前已选、还没发出去的附件
   final List<ChatAttachment> attachments;
   final Widget? modelSelector;
+  final bool translucent;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -91,72 +94,84 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    return SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            key: const ValueKey('message-composer'),
-            margin: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-            padding: const EdgeInsets.fromLTRB(10, 14, 10, 6),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.6),
+    return ColoredBox(
+      key: const ValueKey('chat-bottom-surface'),
+      color: widget.translucent
+          ? AppTheme.chatChromeColor(scheme)
+          : Theme.of(context).scaffoldBackgroundColor,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              key: const ValueKey('message-composer'),
+              margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
+              decoration: BoxDecoration(
+                color: widget.translucent
+                    ? scheme.surfaceContainerLow.withValues(alpha: .55)
+                    : scheme.surface,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.6),
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (widget.attachments.isNotEmpty) _buildAttachmentStrip(),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    _buildAddButton(),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        minLines: 1,
-                        maxLines:
-                            MediaQuery.sizeOf(context).height -
-                                    MediaQuery.viewInsetsOf(context).bottom <
-                                400
-                            ? 2
-                            : 5,
-                        textInputAction: TextInputAction.newline,
-                        keyboardType: TextInputType.multiline,
-                        textCapitalization: TextCapitalization.sentences,
-                        enabled: !widget.isLoading,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        decoration: InputDecoration(
-                          hintText: widget.enabled
-                              ? (widget.isLoading
-                                    ? tr(context, '正在回复…')
-                                    : tr(context, '给万象发消息…'))
-                              : tr(context, '请先在设置里填写 API Key'),
-                          isDense: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (widget.attachments.isNotEmpty) _buildAttachmentStrip(),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      _buildAddButton(),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          minLines: 1,
+                          maxLines:
+                              MediaQuery.sizeOf(context).height -
+                                      MediaQuery.viewInsetsOf(context).bottom <
+                                  400
+                              ? 2
+                              : 5,
+                          textInputAction: TextInputAction.newline,
+                          keyboardType: TextInputType.multiline,
+                          textCapitalization: TextCapitalization.sentences,
+                          enabled: !widget.isLoading,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          decoration: InputDecoration(
+                            fillColor: widget.translucent
+                                ? scheme.surfaceContainerLow.withValues(
+                                    alpha: .5,
+                                  )
+                                : null,
+                            hintText: widget.enabled
+                                ? (widget.isLoading
+                                      ? tr(context, '正在回复…')
+                                      : tr(context, '给万象发消息…'))
+                                : tr(context, '请先在设置里填写 API Key'),
+                            isDense: true,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionButton(),
-                  ],
-                ),
-                if (widget.modelSelector != null) ...[
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: widget.modelSelector,
+                      const SizedBox(width: 8),
+                      _buildActionButton(),
+                    ],
                   ),
+                  if (widget.modelSelector != null) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: widget.modelSelector,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -242,6 +257,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool active = widget.enabled && !widget.isLoading;
     return PopupMenuButton<String>(
+      clipBehavior: Clip.antiAlias,
       tooltip: tr(context, '添加图片或文件'),
       enabled: active,
       onSelected: (String v) {
